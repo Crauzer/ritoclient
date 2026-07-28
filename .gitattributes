@@ -1,0 +1,5 @@
+# LF everywhere. Set from the first commit so there is never a renormalize.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary

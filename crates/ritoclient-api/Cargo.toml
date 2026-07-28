@@ -1,0 +1,50 @@
+[package]
+name = "ritoclient-api"
+version = "0.1.0"
+description = "Client for the Riot Client's local API - discovery, launching, and the product registry"
+keywords = ["riot", "league-of-legends", "valorant", "launcher"]
+categories = ["api-bindings", "games"]
+readme = "README.md"
+# Written by the `ts` feature's export tests, and not part of the crate. A
+# `.gitignore` does not reliably gate `cargo package`; this does.
+exclude = ["bindings/"]
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Derive `ts_rs::TS` on the types that cross an IPC boundary. Only useful to a
+# consumer that exports TypeScript bindings; see the README for the caveat about
+# where the generated files land.
+ts = ["dep:ts-rs"]
+
+[dependencies]
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+ts-rs = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[dev-dependencies]
+assert_matches = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+
+# Launching is Windows-only, so the default Linux docs.rs target would hide it.
+[package.metadata.docs.rs]
+all-features = true
+default-target = "x86_64-pc-windows-msvc"
+targets = ["x86_64-unknown-linux-gnu"]

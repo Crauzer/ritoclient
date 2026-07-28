@@ -1,0 +1,42 @@
+name: Namespace or route request
+description: Ask for an endpoint to be modelled
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Only a handful of the client's 126 namespaces are wrapped. Everything
+        else is already reachable through the low-level `Client` - so this is
+        a request for convenience and recorded knowledge, not for access.
+
+        Credential surfaces (`/rso-auth`, `/rso-authenticator`,
+        `/player-account`, `/entitlements`, `/payments`) are out of scope; see
+        CONTRIBUTING.md.
+
+  - type: input
+    id: namespace
+    attributes:
+      label: Namespace
+      placeholder: "product-session"
+    validations: { required: true }
+
+  - type: textarea
+    id: routes
+    attributes:
+      label: Routes
+      description: Method, path, and what each answers.
+    validations: { required: true }
+
+  - type: textarea
+    id: use
+    attributes:
+      label: What you would use it for
+    validations: { required: true }
+
+  - type: textarea
+    id: observed
+    attributes:
+      label: Anything you have observed
+      description: >
+        Response shapes, statuses on a tray-idle client, spellings you have
+        confirmed. This is the part that is hard to get without a live client.

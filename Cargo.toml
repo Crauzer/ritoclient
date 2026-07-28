@@ -1,0 +1,25 @@
+[workspace]
+members = ["crates/ritoclient-api"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+repository = "https://github.com/Crauzer/ritoclient"
+authors = ["Crauzer"]
+
+[workspace.dependencies]
+reqwest = { version = "0.12", features = ["blocking"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tracing = "0.1"
+ts-rs = "12"
+windows-sys = "0.59"
+
+assert_matches = "1.5"
+tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
