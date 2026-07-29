@@ -12,13 +12,14 @@
 //! defined once and re-exported three times rather than duplicated or arbitrarily
 //! assigned an owner.
 //!
-//! Hand-written behaviour - the methods that turn a wire record into something
-//! worth calling - lives in the grouping modules as `impl` blocks. Rust allows
-//! implementing a type from anywhere in its own crate, so definitions and
-//! behaviour can have different owners: regenerating [`flat`] cannot touch the
-//! methods, and adding a method never risks a merge conflict with the generator.
+//! Behaviour does not live in this crate at all. The methods that turn a wire
+//! record into something worth calling - `is_installed`, `secondary_dir` - are
+//! extension traits in the `ritoclient` crate, re-exported from its prelude: an
+//! inherent `impl` must live in the crate defining the type, and hand-written
+//! code does not belong in this one.
 //!
-//! Types that belong to no namespace in particular live in [`crate::types`].
+//! Types that belong to no namespace in particular live in
+//! [`ritoclient_core::types`].
 
 mod flat;
 

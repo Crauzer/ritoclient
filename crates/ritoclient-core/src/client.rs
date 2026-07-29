@@ -17,38 +17,96 @@
 //! a read query means give up. See [`RiotError`] for the field that tells those
 //! apart, and decide per call site.
 
+use std::fmt;
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-pub use reqwest::{Method, StatusCode};
-
 use crate::lockfile::live_lockfile;
-use crate::namespaces::app_args::AppArgsHandler;
-use crate::namespaces::lifecycle::LifecycleHandler;
-use crate::namespaces::product_launcher::ProductLauncherHandler;
-use crate::namespaces::product_registry::ProductRegistryHandler;
 use crate::retry::RetryPolicy;
 use crate::types::RiotError;
-
-/// A launch has to survive a client that is mid-startup, so it waits.
-///
-/// Generous because the client runs its own gates before it spawns anything -
-/// a patch-state refresh, a player-affinity token, an up-to-date check - and
-/// each is a round trip to Riot's servers. Five seconds covered none of that on
-/// a slow link, and a timeout here does **not** cancel the work: the client went
-/// on to launch minutes later while we had already reported a failure.
-pub const LAUNCH_TIMEOUT: Duration = Duration::from_secs(20);
-
-/// Waking a tray-idle client is a cheap 204, so it does not get the launch
-/// budget - it is retried, and three attempts of [`LAUNCH_TIMEOUT`] would spend
-/// a minute before the wait for the client even starts.
-pub const WAKE_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Read-only queries answer instantly or not at all - they run on paths where a
 /// user is waiting (first-run detection), so they fail fast instead.
 pub const QUERY_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// The verb of a request.
+///
+/// This crate's own enum rather than an HTTP library's type, so the library
+/// stays a private detail of this module and the generated endpoint layer never
+/// freezes its semver into 150 `const METHOD`s. Four variants because the local
+/// API uses nothing else; plain `Copy` data because the endpoint metadata tables
+/// want to carry it in `const`s.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Method {
+    Get,
+    Post,
+    Put,
+    Delete,
+}
+
+impl Method {
+    fn as_reqwest(self) -> reqwest::Method {
+        match self {
+            Self::Get => reqwest::Method::GET,
+            Self::Post => reqwest::Method::POST,
+            Self::Put => reqwest::Method::PUT,
+            Self::Delete => reqwest::Method::DELETE,
+        }
+    }
+}
+
+impl fmt::Display for Method {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Get => "GET",
+            Self::Post => "POST",
+            Self::Put => "PUT",
+            Self::Delete => "DELETE",
+        })
+    }
+}
+
+/// An HTTP status, exactly as the wire carried it.
+///
+/// **No validation.** Riot answers refusals with codes outside the standard set
+/// (464 for an unaccepted ToS), and a type that rejected what the client
+/// actually says would be wrong on first contact. Classifying a status is the
+/// caller's job; this type only carries it and answers the range questions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct StatusCode(u16);
+
+impl StatusCode {
+    pub const NO_CONTENT: StatusCode = StatusCode(204);
+    pub const NOT_FOUND: StatusCode = StatusCode(404);
+
+    pub const fn from_u16(code: u16) -> Self {
+        Self(code)
+    }
+
+    pub const fn as_u16(self) -> u16 {
+        self.0
+    }
+
+    pub const fn is_success(self) -> bool {
+        self.0 >= 200 && self.0 < 300
+    }
+
+    pub const fn is_client_error(self) -> bool {
+        self.0 >= 400 && self.0 < 500
+    }
+
+    pub const fn is_server_error(self) -> bool {
+        self.0 >= 500 && self.0 < 600
+    }
+}
+
+impl fmt::Display for StatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 /// Why a request never produced a response.
 ///
@@ -81,7 +139,11 @@ pub struct Response {
 }
 
 impl Response {
-    pub(crate) fn new(status: StatusCode, body: String) -> Self {
+    /// Construct a response by hand.
+    ///
+    /// Public so tests and fakes above this crate can build one; responses
+    /// normally come out of [`RequestBuilder::send`].
+    pub fn new(status: StatusCode, body: String) -> Self {
         Self { status, body }
     }
 
@@ -109,6 +171,46 @@ impl Response {
     /// The client's error payload, when the body is one.
     pub fn riot_error(&self) -> Option<RiotError> {
         serde_json::from_str(&self.body).ok()
+    }
+}
+
+/// Whether the live client serves a path, read off its answer.
+///
+/// Existence is a property of the client being talked to, not of any table:
+/// a tray-idle client serves almost nothing, plugins register as the client
+/// boots, and being listed in `/help` does not imply the REST route is mounted
+/// (`GetRiotclientappV1IsXbgpRunning` is listed while its route 404s). So the
+/// only honest answer is the one the client gives at request time, and its
+/// protocol distinguishes three states: anything other than a 404 - a success,
+/// a 405 for the wrong verb, even a refusal - proves a handler is mounted, and
+/// a 404 splits on [`RiotError::error_code`].
+///
+/// Obtained from [`Client::probe`], or via `From<&Response>` on an answer
+/// already in hand.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Presence {
+    /// A handler answered. The route is live on this client, whatever the
+    /// status said.
+    Serving,
+    /// 404 `RPC_ERROR`: the route is registered but its handler is
+    /// unavailable - a plugin still starting, or one not applicable to this
+    /// account. The retryable one.
+    Registered,
+    /// 404 `RESOURCE_NOT_FOUND`: no such route on this client - a wrong
+    /// spelling, or a plugin that is not registered at all. Retrying changes
+    /// nothing until the client's state does (a tray-idle client waking).
+    Absent,
+}
+
+impl From<&Response> for Presence {
+    fn from(response: &Response) -> Self {
+        if response.status() != StatusCode::NOT_FOUND {
+            return Self::Serving;
+        }
+        match response.riot_error() {
+            Some(error) if error.is_rpc_error() => Self::Registered,
+            _ => Self::Absent,
+        }
     }
 }
 
@@ -192,26 +294,6 @@ impl Client {
         ClientBuilder::default()
     }
 
-    /// `/product-launcher/v1` - starting a product.
-    pub fn product_launcher(&self) -> ProductLauncherHandler<'_> {
-        ProductLauncherHandler::new(self)
-    }
-
-    /// `/rnet-product-registry/v4` - what is installed, and where.
-    pub fn product_registry(&self) -> ProductRegistryHandler<'_> {
-        ProductRegistryHandler::new(self)
-    }
-
-    /// `/riot-client-lifecycle/v1` - the client's own window.
-    pub fn lifecycle(&self) -> LifecycleHandler<'_> {
-        LifecycleHandler::new(self)
-    }
-
-    /// `/riotclientapp/v1` - the argv handoff.
-    pub fn app_args(&self) -> AppArgsHandler<'_> {
-        AppArgsHandler::new(self)
-    }
-
     pub fn request(&self, method: Method, path: impl Into<String>) -> RequestBuilder<'_> {
         RequestBuilder {
             client: self,
@@ -224,19 +306,19 @@ impl Client {
     }
 
     pub fn get(&self, path: impl Into<String>) -> RequestBuilder<'_> {
-        self.request(Method::GET, path)
+        self.request(Method::Get, path)
     }
 
     pub fn post(&self, path: impl Into<String>) -> RequestBuilder<'_> {
-        self.request(Method::POST, path)
+        self.request(Method::Post, path)
     }
 
     pub fn put(&self, path: impl Into<String>) -> RequestBuilder<'_> {
-        self.request(Method::PUT, path)
+        self.request(Method::Put, path)
     }
 
     pub fn delete(&self, path: impl Into<String>) -> RequestBuilder<'_> {
-        self.request(Method::DELETE, path)
+        self.request(Method::Delete, path)
     }
 
     /// `GET <path>`, deserialized, with every failure collapsed to `None`.
@@ -264,11 +346,30 @@ impl Client {
             .ok()
     }
 
+    /// Ask the live client whether it serves `path`, without invoking anything
+    /// mutating.
+    ///
+    /// The probe is a plain `GET`: a POST-only route answers 405, which is
+    /// [`Presence::Serving`] - existence confirmed without firing the call.
+    /// Takes anything path-shaped - a [`Route`](crate::Route), a bound
+    /// [`Endpoint::path`](crate::Endpoint::path), a raw string for paths
+    /// outside the route convention. A parameterized path must be bound first;
+    /// a literal `{placeholder}` just answers as no such route. And on a bound
+    /// path, a 404 can be about the entity rather than the route - the
+    /// `errorCode` split is the best signal the client gives.
+    ///
+    /// `Err` still means no round trip happened, per this crate's rule; the
+    /// three-way [`Presence`] is only ever read off an actual answer.
+    pub fn probe(&self, path: impl Into<String>) -> Result<Presence, RequestError> {
+        let response = self.get(path).send()?;
+        Ok(Presence::from(&response))
+    }
+
     /// One attempt. Re-reads the lockfile, so a port that moved since the last
     /// attempt is picked up rather than retried against.
     fn attempt(
         &self,
-        method: &Method,
+        method: Method,
         path: &str,
         body: Option<&str>,
         timeout: Duration,
@@ -277,7 +378,10 @@ impl Client {
 
         let mut request = self
             .http
-            .request(method.clone(), format!("{}{path}", lockfile.base_url()))
+            .request(
+                method.as_reqwest(),
+                format!("{}{path}", lockfile.base_url()),
+            )
             .basic_auth("riot", Some(&lockfile.password))
             .timeout(timeout);
 
@@ -291,7 +395,7 @@ impl Client {
             .send()
             .map_err(|e| RequestError::Transport(describe(&e)))?;
 
-        let status = response.status();
+        let status = StatusCode::from_u16(response.status().as_u16());
         let body = response
             .text()
             .map_err(|e| RequestError::Transport(describe(&e)))?;
@@ -353,7 +457,7 @@ impl RequestBuilder<'_> {
         loop {
             let outcome = self
                 .client
-                .attempt(&self.method, &self.path, body.as_deref(), timeout);
+                .attempt(self.method, &self.path, body.as_deref(), timeout);
 
             let Some(delay) = policy.next_delay(&outcome, attempt, started.elapsed()) else {
                 return outcome;
@@ -424,7 +528,7 @@ mod tests {
     const EULA_REFUSAL: &str = r#"{"errorCode":"eula_not_accepted","httpStatus":464,"implementationDetails":{},"message":"eula_not_accepted: Cannot run product 'league_of_legends' patchline 'live' because the player didn't accept EULA Terms of Service"}"#;
 
     fn response(status: u16, body: &str) -> Response {
-        Response::new(StatusCode::from_u16(status).unwrap(), body.to_string())
+        Response::new(StatusCode::from_u16(status), body.to_string())
     }
 
     #[test]
@@ -455,6 +559,36 @@ mod tests {
             .unwrap();
         assert!(unavailable.is_rpc_error());
         assert!(!unavailable.is_resource_not_found());
+    }
+
+    /// The classification behind [`Client::probe`]: anything but a 404 proves
+    /// a mounted handler, and the two 404 flavours split on the errorCode.
+    #[test]
+    fn presence_reads_the_clients_three_answers() {
+        assert_eq!(Presence::from(&response(200, "true")), Presence::Serving);
+        assert_eq!(Presence::from(&response(405, "")), Presence::Serving);
+        // A refusal is an answer: the route that refused is live.
+        assert_eq!(
+            Presence::from(&response(464, EULA_REFUSAL)),
+            Presence::Serving
+        );
+        assert_eq!(
+            Presence::from(&response(
+                404,
+                r#"{"errorCode":"RPC_ERROR","message":"nope"}"#
+            )),
+            Presence::Registered
+        );
+        assert_eq!(
+            Presence::from(&response(
+                404,
+                r#"{"errorCode":"RESOURCE_NOT_FOUND","message":"no"}"#
+            )),
+            Presence::Absent
+        );
+        // A 404 whose body is not the client's error payload still reads
+        // absent rather than inventing a third guess.
+        assert_eq!(Presence::from(&response(404, "")), Presence::Absent);
     }
 
     #[test]
@@ -520,5 +654,9 @@ mod tests {
                 .get_json::<serde_json::Value>("/patch/v1/installs")
                 .is_none()
         );
+        assert!(matches!(
+            client.probe("/patch/v1/installs"),
+            Err(RequestError::NoClient)
+        ));
     }
 }

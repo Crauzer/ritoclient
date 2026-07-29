@@ -726,17 +726,40 @@ dependencies = [
 ]
 
 [[package]]
-name = "ritoclient-api"
+name = "ritoclient"
 version = "0.1.0"
 dependencies = [
  "assert_matches",
- "reqwest",
+ "ritoclient-api",
+ "ritoclient-core",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror",
  "tracing",
  "ts-rs",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "ritoclient-api"
+version = "0.1.0"
+dependencies = [
+ "ritoclient-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "ritoclient-core"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tracing",
  "windows-sys 0.59.0",
 ]
 

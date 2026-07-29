@@ -7,8 +7,9 @@
 
 use std::time::{Duration, Instant};
 
+use ritoclient_api::namespaces::lifecycle::endpoints::Hide;
+
 use crate::client::Client;
-use crate::namespaces::lifecycle;
 
 /// How long to keep watching for the game before giving up.
 ///
@@ -105,9 +106,11 @@ fn wait_for_game(game_process: &str) -> bool {
 ///
 /// Quiet because the re-assert loop calls this several times for one user-
 /// visible event; [`hide_for_play_session`] logs the moments that mean
-/// something instead.
+/// something instead. `ignore()` is the right finisher for exactly this shape
+/// of caller: a hide that did not stick - transport failure or unhappy status
+/// alike - is worth one debug line and nothing more.
 fn hide_now(client: &Client) {
-    if let Err(e) = lifecycle::post(client, lifecycle::routes::HIDE) {
+    if let Err(e) = client.endpoint(&Hide).ignore() {
         tracing::debug!("Could not hide the Riot Client: {e}");
     }
 }

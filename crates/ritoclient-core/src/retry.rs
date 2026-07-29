@@ -196,7 +196,7 @@ mod tests {
 
     fn ok(status: u16) -> Result<Response, RequestError> {
         Ok(Response::new(
-            crate::client::StatusCode::from_u16(status).unwrap(),
+            crate::client::StatusCode::from_u16(status),
             String::new(),
         ))
     }

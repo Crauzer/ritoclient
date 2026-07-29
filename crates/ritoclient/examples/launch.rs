@@ -1,7 +1,7 @@
 //! Start a game through the Riot Client, printing progress as it goes.
 //!
 //! ```text
-//! cargo run -p ritoclient-api --example launch
+//! cargo run -p ritoclient --example launch
 //! ```
 //!
 //! **This actually launches the game.** It is the counterpart to `probe`: that
@@ -21,8 +21,8 @@
 
 use std::path::PathBuf;
 
-use ritoclient_api::ids::{patchlines, products};
-use ritoclient_api::{LaunchObserver, LaunchProgress, LaunchStage, LaunchTarget};
+use ritoclient::ids::{patchlines, products};
+use ritoclient::{LaunchObserver, LaunchProgress, LaunchStage, LaunchTarget};
 
 /// The executable to watch for. This crate names no products, so the caller
 /// says which process means "the game is up".
@@ -56,11 +56,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "{:#?}",
-        ritoclient_api::availability(product_root.as_deref(), GAME_PROCESS)
+        ritoclient::availability(product_root.as_deref(), GAME_PROCESS)
     );
     println!("\nlaunching {}/{}", target.product_id, target.patchline_id);
 
-    let outcome = ritoclient_api::launch(product_root.as_deref(), &target, GAME_PROCESS, &Printer)?;
+    let outcome = ritoclient::launch(product_root.as_deref(), &target, GAME_PROCESS, &Printer)?;
 
     // "Delivered" is not "running": the client may still patch, or wait for a
     // login. The session id is the key into `/product-session/v1/external-sessions`,

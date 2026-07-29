@@ -21,15 +21,15 @@
 //!   to the argv handoff (see [`crate::namespaces::app_args`]), so this 404s in that state
 //!   and does not exist at all when the client is closed.
 
+pub mod endpoints;
 pub mod routes;
 
-use crate::client::Client;
+use ritoclient_core::client::Client;
+
 use crate::models::product_registry::Product;
 
-use routes::PRODUCTS;
-
 /// The `/rnet-product-registry/v4` namespace. Obtained from
-/// [`Client::product_registry`].
+/// [`ClientExt::product_registry`](crate::ClientExt::product_registry).
 pub struct ProductRegistryHandler<'a> {
     client: &'a Client,
 }
@@ -44,13 +44,6 @@ impl<'a> ProductRegistryHandler<'a> {
     /// `None` means the client could not answer - closed, tray-idle, or a shape
     /// we no longer recognise. Never an error: every caller has a fallback.
     pub fn products(&self) -> Option<Vec<Product>> {
-        let products: Vec<Product> = self.client.get_json(PRODUCTS)?;
-        tracing::debug!("Product registry returned {} product(s)", products.len());
-        Some(products)
-    }
-
-    /// One product's record, by id.
-    pub fn product(&self, id: &str) -> Option<Product> {
-        self.products()?.into_iter().find(|p| p.id == id)
+        self.client.endpoint(&endpoints::Products).ok()
     }
 }

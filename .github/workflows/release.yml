@@ -37,7 +37,13 @@ jobs:
         with:
           body_path: ${{ steps.cliff.outputs.changelog }}
 
+      # Dependency order matters: each `=`-pinned dependency must exist on
+      # crates.io before the crate that names it. `cargo publish` blocks until
+      # the crate is available, so no sleep is needed between them.
       - name: Publish to crates.io
-        run: cargo publish -p ritoclient-api
+        run: |
+          cargo publish -p ritoclient-core
+          cargo publish -p ritoclient-api
+          cargo publish -p ritoclient
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

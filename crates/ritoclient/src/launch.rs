@@ -11,6 +11,10 @@
 //! five seconds **terminates the running client** and takes the lock. So we
 //! always probe the lockfile first and only cold-start when nothing is alive.
 //!
+//! This module is also where a launch's *judgement* lives - what a 404 from the
+//! launcher means, how long a refusal is disbelieved, when to wake and when to
+//! wait. The namespace handlers below it return statuses and decide nothing.
+//!
 //! Windows only. Everything else gets [`LauncherError::UnsupportedPlatform`].
 
 use std::path::Path;
@@ -168,6 +172,189 @@ fn launch_inner(
     }
 }
 
+/// What a launch request found at the other end.
+///
+/// This is the classification the layers below deliberately do not make: a
+/// status means different things on different routes, and these are what it
+/// means on *this* one, to *this* caller.
+#[cfg(target_os = "windows")]
+#[derive(Debug)]
+enum LaunchAttempt {
+    /// The client launched the product. Carries the session id it minted, which
+    /// is the key into `/product-session/v1/external-sessions`.
+    Launched { session_id: Option<String> },
+    /// The client is alive but cannot take the request *yet*. Four shapes, one
+    /// meaning:
+    ///
+    /// - **404** - the product-launcher plugin is not registered. The client is
+    ///   still booting, or idling in the tray with a minimal API surface.
+    /// - **5xx** - registered, but not far enough along to serve the call.
+    /// - **the connection failed** - its remoting listener is restarting, which
+    ///   is exactly what waking it does, on a *new port* under the same pid.
+    /// - **no live lockfile** - it went away between one attempt and the next.
+    ///
+    /// The connection failure used to be a hard error, which is why a launch
+    /// would fail while the client it was aimed at was merely mid-restart. Every
+    /// one of these is a "not yet" that the wait in [`wait_for_launcher`]
+    /// recovers from.
+    NotReady { reason: String },
+}
+
+/// Ask the client to launch, and classify the answer.
+#[cfg(target_os = "windows")]
+fn attempt_launch(
+    client: &crate::client::Client,
+    target: &LaunchTarget,
+) -> Result<LaunchAttempt, LauncherError> {
+    use ritoclient_api::ClientExt;
+    use ritoclient_core::client::{RequestError, StatusCode};
+
+    let response = match client
+        .product_launcher()
+        .launch(&target.product_id, &target.patchline_id)
+    {
+        Ok(response) => response,
+        Err(RequestError::NoClient) => {
+            return Ok(LaunchAttempt::NotReady {
+                reason: "the Riot Client is no longer running".to_string(),
+            });
+        }
+        Err(e) => {
+            return Ok(LaunchAttempt::NotReady {
+                reason: e.to_string(),
+            });
+        }
+    };
+
+    let status = response.status();
+
+    // A client that has not loaded the launcher plugin answers 404 for the
+    // whole namespace; a 5xx is one that loaded it but cannot serve it yet.
+    if status == StatusCode::NOT_FOUND || status.is_server_error() {
+        return Ok(LaunchAttempt::NotReady {
+            reason: format!("HTTP {status}"),
+        });
+    }
+
+    // Anything else is the client answering, not stalling: an unaccepted ToS, an
+    // ineligible product, a locked patchline. Retrying cannot change those, and
+    // the status alone cannot describe them - see [`refusal`].
+    if !status.is_success() {
+        return Err(refusal(&response));
+    }
+
+    // The body is a bare JSON string holding the session id. Losing it costs
+    // us session tracking, not the launch, so a shape we don't recognise is
+    // dropped rather than raised.
+    let session_id = response.json::<String>().ok();
+    tracing::info!(
+        "Riot Client launched {}/{} (session {:?})",
+        target.product_id,
+        target.patchline_id,
+        session_id
+    );
+    Ok(LaunchAttempt::Launched { session_id })
+}
+
+/// Turn a refused launch into an error that names its cause.
+///
+/// Falls back to [`LauncherError::RiotClientUnreachable`] with the raw body when
+/// the payload is not the client's error shape - a refusal we cannot explain is
+/// still better reported verbatim than swallowed.
+#[cfg(target_os = "windows")]
+fn refusal(response: &crate::client::Response) -> LauncherError {
+    let Some(error) = response.riot_error() else {
+        return LauncherError::RiotClientUnreachable {
+            reason: format!("HTTP {}: {}", response.status(), response.body().trim()),
+        };
+    };
+
+    let message = error.prose().to_string();
+    tracing::warn!(
+        "Riot Client refused the launch: {} ({})",
+        message,
+        error.error_code
+    );
+    LauncherError::LaunchRefused {
+        riot_error_code: error.error_code,
+        message,
+    }
+}
+
+/// Wake a tray-idle client by handing it launch arguments over `new-args`.
+///
+/// Do not mistake its 204 for a launch: `new-args` queues argv and nothing
+/// more - see [`ritoclient_api::namespaces::app_args`]. Its one use is exactly
+/// this call.
+///
+/// **This is the call that moves the port.** Waking the client restarts its
+/// remoting listener on a *new port* under the same pid, so from the second
+/// attempt onwards any cached port names something nothing is listening on -
+/// the retries would all fail against a client that had in fact just woken
+/// up. The client re-reads the lockfile per attempt, which is what makes
+/// retrying this particular call meaningful at all.
+///
+/// The loop is hand-rolled rather than a [`crate::retry::RetryPolicy`] because
+/// [`crate::window::allow_foreground`] has to be re-asserted before *each*
+/// attempt: the grant is consumed when a window takes the foreground, so
+/// issuing it once ahead of a retry sequence would leave the later attempts
+/// unable to raise the window.
+#[cfg(target_os = "windows")]
+fn wake(client: &crate::client::Client, target: &LaunchTarget) -> Result<(), LauncherError> {
+    use std::time::Duration;
+
+    use ritoclient_api::namespaces::app_args::endpoints::NewArgs;
+    use ritoclient_core::client::{RequestError, StatusCode};
+
+    /// Waking is a cheap 204, so it does not get the launch budget - it is
+    /// retried, and three attempts of the launch timeout would spend a minute
+    /// before the wait for the client even starts.
+    const WAKE_TIMEOUT: Duration = Duration::from_secs(5);
+
+    /// The client may be mid-startup when we ask, so a refusal is worth a
+    /// couple of retries before it counts as unreachable.
+    const ATTEMPTS: u32 = 3;
+    const RETRY_DELAY: Duration = Duration::from_millis(250);
+
+    // Both elements are required: the client only takes its launch branch
+    // when `--launch-product` and `--launch-patchline` are both present.
+    let args = [
+        format!("--launch-product={}", target.product_id),
+        format!("--launch-patchline={}", target.patchline_id),
+    ];
+
+    let mut last_reason = String::from("no attempt was made");
+
+    for attempt in 1..=ATTEMPTS {
+        crate::window::allow_foreground();
+
+        match client
+            .endpoint(&NewArgs { args: &args })
+            .timeout(WAKE_TIMEOUT)
+            .send()
+        {
+            Ok(response) if response.status() == StatusCode::NO_CONTENT => {
+                tracing::debug!("Woke the Riot Client with new-args");
+                return Ok(());
+            }
+            Ok(response) => last_reason = format!("HTTP {}", response.status()),
+            Err(RequestError::NoClient) => {
+                last_reason = "the Riot Client is no longer running".to_string();
+            }
+            Err(e) => last_reason = e.to_string(),
+        }
+
+        tracing::debug!("new-args attempt {attempt}/{ATTEMPTS} failed: {last_reason}");
+        if attempt < ATTEMPTS {
+            std::thread::sleep(RETRY_DELAY);
+        }
+    }
+
+    Err(LauncherError::RiotClientUnreachable {
+        reason: last_reason,
+    })
+}
+
 /// Deliver a launch to a Riot Client that is already up.
 ///
 /// The happy path is one POST to the product-launcher. Anything short of that -
@@ -181,8 +368,8 @@ fn hand_off(
     game_process: &str,
     observer: &dyn LaunchObserver,
 ) -> Result<LaunchOutcome, LauncherError> {
-    use crate::client::{Client, RequestError};
-    use crate::namespaces::product_launcher::LaunchAttempt;
+    use ritoclient_api::ClientExt;
+    use ritoclient_core::client::{Client, RequestError};
 
     // One connection for the whole handoff, including the wait. It resolves the
     // lockfile per attempt, so it survives the port change that waking the
@@ -191,7 +378,11 @@ fn hand_off(
         reason: e.to_string(),
     })?;
 
-    if client.product_launcher().is_eligible(target) == Some(false) {
+    if client
+        .product_launcher()
+        .is_eligible(&target.product_id, &target.patchline_id)
+        == Some(false)
+    {
         tracing::warn!(
             "Riot Client reports {}/{} is not eligible to launch",
             target.product_id,
@@ -202,7 +393,7 @@ fn hand_off(
     observer.on_progress(LaunchProgress::at(LaunchStage::HandingOff));
 
     crate::window::allow_foreground();
-    match client.product_launcher().launch(target) {
+    match attempt_launch(&client, target) {
         Ok(LaunchAttempt::Launched { session_id }) => Ok(LaunchOutcome {
             route: LaunchRoute::ExistingClient,
             riot_client_pid: Some(riot_client_pid),
@@ -216,7 +407,7 @@ fn hand_off(
             // wake for the same reason it refused the launch, and the wait below
             // is what recovers from that - failing here would report the client
             // unreachable while it was busy becoming reachable.
-            if let Err(e) = client.app_args().wake_with_launch_args(target) {
+            if let Err(e) = wake(&client, target) {
                 tracing::debug!("Could not wake the Riot Client: {e}");
             }
             wait_for_launcher(&client, riot_client_pid, target, game_process, observer)
@@ -249,7 +440,7 @@ fn wait_for_launcher(
 ) -> Result<LaunchOutcome, LauncherError> {
     use std::time::{Duration, Instant};
 
-    use crate::namespaces::product_launcher::LaunchAttempt;
+    use ritoclient_api::ClientExt;
 
     /// Booting from the tray is tens of seconds on a cold disk, and the client
     /// may self-update on the way up. Overshooting costs a spinner the user can
@@ -300,7 +491,7 @@ fn wait_for_launcher(
 
         // Read for the pid rather than the port: a client that restarted during
         // the wait comes back under a new one, and that is what the outcome
-        // should report. The port is [`crate::client::Client`]'s business.
+        // should report. The port is the connection's business.
         let Some(lockfile) = crate::lockfile::live_lockfile() else {
             continue;
         };
@@ -316,7 +507,7 @@ fn wait_for_launcher(
         // Transient failures are expected while the client reinitialises, so
         // only the deadline ends this loop - but the last one is kept, because
         // it is the only description of *why* the wait ran out.
-        match client.product_launcher().launch(target) {
+        match attempt_launch(client, target) {
             Ok(LaunchAttempt::Launched { session_id }) => {
                 return Ok(LaunchOutcome {
                     route: LaunchRoute::ExistingClient,
@@ -409,6 +600,56 @@ mod tests {
 
             assert!(matches!(error, LauncherError::UnsupportedPlatform));
             assert_eq!(observer.stages(), vec![LaunchStage::Error]);
+        }
+    }
+
+    /// The refusal classification is pure parsing, but it lives beside the
+    /// Windows-only wait it informs, so these run where it compiles.
+    #[cfg(target_os = "windows")]
+    mod refusals {
+        use super::super::refusal;
+
+        use assert_matches::assert_matches;
+        use ritoclient_core::client::{Response, StatusCode};
+
+        use crate::error::LauncherError;
+
+        /// Verbatim from a live refusal, non-standard status and all. The
+        /// status is the part that carries no information: 464 is not in the
+        /// standard set, so a user shown "HTTP 464" learns nothing about what
+        /// to do.
+        const EULA_REFUSAL: &str = r#"{"errorCode":"eula_not_accepted","httpStatus":464,"implementationDetails":{},"message":"eula_not_accepted: Cannot run product 'league_of_legends' patchline 'live' because the player didn't accept EULA Terms of Service"}"#;
+
+        fn response(status: u16, body: &str) -> Response {
+            Response::new(StatusCode::from_u16(status), body.to_string())
+        }
+
+        #[test]
+        fn a_refusal_keeps_riots_code_and_drops_its_prefix_from_the_prose() {
+            assert_matches!(
+                refusal(&response(464, EULA_REFUSAL)),
+                LauncherError::LaunchRefused { riot_error_code, message } => {
+                    assert_eq!(riot_error_code, "eula_not_accepted");
+                    assert!(
+                        message.starts_with("Cannot run product"),
+                        "the code is a field, so the prose must not repeat it: {message}"
+                    );
+                }
+            );
+        }
+
+        /// A refusal we cannot parse still has to reach the user - reporting it
+        /// verbatim is worse than a tailored message and far better than
+        /// nothing.
+        #[test]
+        fn an_unrecognised_body_falls_back_to_the_raw_text() {
+            assert_matches!(
+                refusal(&response(409, "patchline is locked")),
+                LauncherError::RiotClientUnreachable { reason } => {
+                    assert!(reason.contains("409"));
+                    assert!(reason.contains("patchline is locked"));
+                }
+            );
         }
     }
 

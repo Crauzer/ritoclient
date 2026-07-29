@@ -1,6 +1,6 @@
 //! The routes of `/rnet-product-registry`.
 
-crate::routes! {
+ritoclient_core::routes! {
     namespace = "rnet-product-registry";
 
     /// `GET /rnet-product-registry/v4/products` - every product the client

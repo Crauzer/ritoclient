@@ -14,31 +14,55 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
 ```
 
 CI runs all four on Windows and Linux, plus an MSRV check and a
-`cargo publish --dry-run`. The docs job is not decorative: it fails on a broken
-intra-doc link, which is the most common way a doc comment rots here.
+`cargo package --workspace`. The docs job is not decorative: it fails on a
+broken intra-doc link, which is the most common way a doc comment rots here.
+
+## The three crates
+
+```text
+crates/ritoclient/        orchestration and the facade. Depend on this one
+crates/ritoclient-api/    typed namespaces and models. The generator's crate
+crates/ritoclient-core/   transport: client, retry, route, lockfile, processes
+```
+
+Dependencies point downward only, and Cargo refusing a cycle is the boundary's
+enforcement. The practical rule: **anything that loops, sleeps, calls the OS, or
+decides what a status means goes in `ritoclient`; nothing hand-written goes in
+`ritoclient-api` beyond what a generator would write** - see
+[`docs/design/layering.md`](docs/design/layering.md). Behaviour for generated
+model types is an extension trait in `ritoclient` (`PatchlineExt`, `ProductExt`
+in `models_ext.rs`), never an inherent `impl`.
+
+## Background
+
+This file is the *how*. The *why*, and the measurements behind it, are in [`docs/`](docs/) -
+start with [`docs/README.md`](docs/README.md). Before adding a namespace, read its entry in
+[the survey](docs/riot-client-local-api.md); before changing how endpoints are shaped, read
+[the layout doc](docs/design/endpoint-layout.md), which records how the current shape was decided.
 
 ## Conventions
 
-### Every namespace gets a folder, and routes get their own file
+### Every namespace gets a folder, and three files inside it
 
 ```text
 namespaces/<namespace>/
-    mod.rs      the handler and its endpoint methods
-    routes.rs   the Route declarations, and the helpers that bind them
+    mod.rs         the handler and its endpoint methods
+    routes.rs      the Route declarations
+    endpoints.rs   the endpoint types and the namespace's EndpointMeta table
 ```
 
-This holds even for a namespace with a single route. octocrab splits only when a
-module grows, which suits a crate whose namespaces are all hand-written; this one
-is aimed at the client's 126, with `routes.rs` the file a generator writes and
-`mod.rs` the file it must never touch. A layout that changes shape at some size
-threshold cannot be that seam, so there is no threshold.
+This holds even for a namespace with a single route. The crate is aimed at the
+client's 126 namespaces and is slated to be written whole by a generator; a
+layout that changes shape at some size threshold cannot be a generator target,
+so there is no threshold. There is no protected file inside the crate - the
+plan is that regeneration wipes and rewrites all of it.
 
 Each `routes.rs` is one `routes!` invocation, which declares the constants and
 that namespace's `ALL` table from the same list - so a route cannot be added and
 left out of the table:
 
 ```rust
-crate::routes! {
+ritoclient_core::routes! {
     namespace = "riot-client-lifecycle";
 
     /// `POST /riot-client-lifecycle/v1/hide` - "Hide the UX."
@@ -51,28 +75,44 @@ namespace serves several at a time - `rnet-product-registry` is on v1 and v4
 simultaneously.
 
 `namespaces::ALL_ROUTES` merges every table and `namespaces::routes()` flattens
-it. Nothing needs updating when a namespace is added beyond the one entry in
-`ALL_ROUTES`.
+it; `ALL_ENDPOINTS` / `endpoints()` do the same for the endpoint tables. Nothing
+needs updating when a namespace is added beyond those two entries.
+
+### Endpoints are types; handlers are sugar
+
+Each operation is a struct implementing `ritoclient_core::Endpoint` - the verb
+and route as associated consts, path parameters as borrowed fields, the output
+as an associated type. The handler method constructs the endpoint and picks a
+finisher (`send()`, `json()`, `ok()`, `ignore()`); nothing else belongs in it.
+`endpoints.rs` also declares the namespace's `ALL: &[EndpointMeta]` row per
+endpoint, and a test in `namespaces/mod.rs` asserts the tables stay in step
+with the impls and the route tables.
+
+The tables say what the crate declares, never what a client serves: existence
+varies per client build and boot state, so it is asked at runtime with
+`Client::probe`, not recorded as metadata.
 
 ### Everything else
 
 - **`models/` mirrors `namespaces/`.** The types a namespace returns are always
   at the matching path under `models::`. `models::flat` is private generated
   storage under the client's own qualified names; the grouping modules re-export
-  from it under ergonomic ones and own the hand-written `impl` blocks.
+  from it under ergonomic ones. Behaviour for those types lives in
+  `ritoclient`'s extension traits, never in `ritoclient-api`.
 - **Handlers are named `<Namespace>Handler`.** The suffix looks redundant at four
   namespaces and stops looking that way at 126: the client's namespace names and
   its type names overlap heavily, and `ProductSessionHandler` next to
   `models::product_session::ProductSession` is the collision it prevents.
-- **Read-only calls return `Option`, never `Result`.** Every caller has a
-  fallback, and "the client didn't answer" is not a failure worth showing a user.
-  Only launching returns `LauncherError`.
+- **Handlers return `Option<T>` or `Result<Response, RequestError>`, nothing
+  else.** Read-only calls answer `Option`, because every caller has a fallback
+  and "the client didn't answer" is not a failure worth showing a user. Only the
+  orchestration in `ritoclient` returns `LauncherError`.
 - **A status is data, not an error.** `RequestError` means no round trip
   happened. Deciding what a 404 means belongs to the caller, because it differs
   per route.
-- **Orchestration sits above `namespaces/`, not among it.** Anything that polls,
-  spawns a thread, or decides *which* route to drive for a job goes in `launch`
-  or `session`.
+- **Orchestration lives in `ritoclient`, not in `namespaces/`.** Anything that
+  polls, spawns a thread, or decides *which* route to drive for a job goes in
+  `launch` or `session`.
 
 ### Doc comments
 
@@ -101,13 +141,15 @@ Unit tests run without a client and cover parsing, route binding, and the tables
 Anything needing a live client belongs in `examples/`, which CI never runs:
 
 ```bash
-cargo run -p ritoclient-api --example probe          # read-only
-cargo run -p ritoclient-api --example hide_and_show  # hides the window, then restores it
-cargo run -p ritoclient-api --example launch         # starts a game
+cargo run -p ritoclient --example probe          # read-only
+cargo run -p ritoclient --example hide_and_show  # hides the window, then restores it
+cargo run -p ritoclient --example launch         # starts a game
 ```
 
 When a probe confirms or corrects a route spelling, put the finding in the route's
-doc comment. That is the only record of it.
+doc comment. That is the only record of it - for now: once `schema/overrides.toml`
+exists (codegen step 2), measured knowledge single-homes there and the generator
+emits it, because a regenerated crate keeps nothing typed into it by hand.
 
 ## Commits and releases
 

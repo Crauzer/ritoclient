@@ -2,10 +2,10 @@
 //!
 //! Touches nothing. It is the cheap first step when something launcher-shaped
 //! misbehaves, the way to see registry fields this crate does not model yet, and
-//! how [`ritoclient_api::ids`] gets refreshed after a client update.
+//! how [`ritoclient::ids`] gets refreshed after a client update.
 //!
 //! ```text
-//! cargo run -p ritoclient-api --example probe
+//! cargo run -p ritoclient --example probe
 //! ```
 //!
 //! Set `LTK_LEAGUE_PATH` to exercise the `associated_client` lookup in
@@ -14,8 +14,11 @@
 
 use std::path::PathBuf;
 
-use ritoclient_api::ids::{patchlines, products};
-use ritoclient_api::{Client, Route, installs, live_lockfile, processes};
+use ritoclient::ids::{patchlines, products};
+use ritoclient::prelude::*;
+use ritoclient::{
+    Client, EndpointMeta, Method, Presence, Route, installs, live_lockfile, processes,
+};
 
 const REGISTRY_PRODUCTS: Route = Route::new("rnet-product-registry", 4, "products");
 const INSTALL_STATES: Route = Route::new("rnet-product-registry", 1, "install-states");
@@ -66,7 +69,7 @@ fn main() {
 
     println!(
         "\n{:#?}",
-        ritoclient_api::availability(product_root.as_deref(), "leagueclient.exe")
+        ritoclient::availability(product_root.as_deref(), "leagueclient.exe")
     );
 
     let Ok(client) = Client::new() else {
@@ -115,12 +118,19 @@ fn main() {
     // the handful of routes that sit outside the namespace convention.
     dump(&client, "/riotclient/region-locale");
 
-    // `/help` names functions but gives no paths, so a derived spelling has to
-    // be confirmed before it is trusted. A GET against a POST-only route answers
-    // 405, which proves the spelling without firing the call.
+    // Everything the workspace declares, checked against this client. The
+    // endpoint tables carry the verb, so each row is asked honestly - see
+    // `confirm_endpoint` for what that means per method.
+    println!();
+    for meta in ritoclient::namespaces::endpoints() {
+        confirm_endpoint(&client, meta);
+    }
+
+    // `/help` names functions but gives no paths, so a spelling not yet
+    // declared as an endpoint has to be confirmed before it is trusted. A GET
+    // against a POST-only route answers 405, which proves the spelling without
+    // firing the call.
     for route in [
-        Route::new("riot-client-lifecycle", 1, "hide"),
-        Route::new("riot-client-lifecycle", 1, "show"),
         Route::new("riot-client-lifecycle", 1, "minimize"),
         Route::new("riot-client-lifecycle", 1, "quit"),
         Route::new("launch-restriction", 1, "restrictions"),
@@ -131,11 +141,8 @@ fn main() {
 
 fn is_tray_idle(client: &Client) -> bool {
     client
-        .get(REGISTRY_PRODUCTS)
-        .send()
-        .ok()
-        .and_then(|response| response.riot_error())
-        .is_some_and(|error| error.is_resource_not_found())
+        .probe(REGISTRY_PRODUCTS)
+        .is_ok_and(|presence| presence == Presence::Absent)
 }
 
 /// `GET` a path and print its body, pretty-printed when it is JSON.
@@ -161,6 +168,40 @@ fn dump(client: &Client, path: impl Into<String>) {
     }
 }
 
+/// Confirm a declared endpoint's spelling against the live client, without
+/// firing anything mutating.
+///
+/// The metadata row carries the verb, so the check is honest per endpoint: a
+/// GET endpoint is simply asked, and for a mutating one the same GET drawing a
+/// 405 proves the route is live and gated exactly as declared - existence
+/// confirmed without invoking the call.
+fn confirm_endpoint(client: &Client, meta: EndpointMeta) {
+    let path = meta.route.path();
+
+    // A parameterized path cannot be probed blind; its placeholders are bound
+    // by the callers earlier in this survey.
+    if path.contains('{') {
+        println!("{} {path} (parameterized; not probed blind)", meta.method);
+        return;
+    }
+
+    match client.get(&path).send() {
+        Ok(response) => {
+            let meaning = match response.status().as_u16() {
+                405 if meta.method != Method::Get => "exists, method-gated as declared".to_string(),
+                200 | 204 if meta.method == Method::Get => "answered".to_string(),
+                _ => explain(&response),
+            };
+            println!(
+                "{} {path} -> {} ({meaning})",
+                meta.method,
+                response.status()
+            );
+        }
+        Err(e) => println!("{} {path} -> {e}", meta.method),
+    }
+}
+
 /// Confirm a route exists without invoking it.
 fn confirm(client: &Client, path: impl Into<String>) {
     let path = path.into();
@@ -179,7 +220,7 @@ fn confirm(client: &Client, path: impl Into<String>) {
 }
 
 /// The two flavours of 404 mean opposite things and are worth telling apart.
-fn explain(response: &ritoclient_api::Response) -> String {
+fn explain(response: &ritoclient::Response) -> String {
     match response.riot_error() {
         Some(error) if error.is_resource_not_found() => "no such route".to_string(),
         Some(error) if error.is_rpc_error() => "registered, handler unavailable".to_string(),

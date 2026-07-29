@@ -1,6 +1,6 @@
 //! The routes of `/riot-client-lifecycle`.
 
-crate::routes! {
+ritoclient_core::routes! {
     namespace = "riot-client-lifecycle";
 
     /// `POST /riot-client-lifecycle/v1/hide` - "Hide the UX." Sends the window

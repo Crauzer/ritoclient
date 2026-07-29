@@ -1,0 +1,37 @@
+[package]
+name = "ritoclient-core"
+description = "Transport for the Riot Client's local loopback API - the client, retries, routes, and the lockfile"
+keywords = ["riot", "league-of-legends", "valorant", "launcher"]
+categories = ["api-bindings", "games"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# `lockfile` needs the process table: a lockfile survives a crash, so a live
+# client is "the file parses AND its pid is still RiotClientServices.exe".
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_Diagnostics_ToolHelp",
+] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+targets = ["x86_64-unknown-linux-gnu"]

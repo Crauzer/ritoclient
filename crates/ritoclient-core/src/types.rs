@@ -1,8 +1,8 @@
 //! Types that belong to no namespace in particular.
 //!
-//! [`crate::models`] holds the data a *specific* namespace carries. This holds
-//! the rest: shapes the client uses everywhere, which no namespace owns and
-//! which therefore have nowhere sensible to sit among them.
+//! `ritoclient-api`'s `models` holds the data a *specific* namespace carries.
+//! This holds the rest: shapes the client uses everywhere, which no namespace
+//! owns and which therefore have nowhere sensible to sit among them.
 
 use serde::Deserialize;
 

@@ -17,9 +17,9 @@
 //! # Ownership
 //!
 //! This file becomes generator output. Definitions only - fields, serde
-//! attributes, doc comments carried from the schema. Hand-written behaviour goes
-//! on the grouping modules as `impl` blocks, which Rust allows from anywhere in
-//! the crate, so regenerating this file can never clobber it.
+//! attributes, doc comments carried from the schema. Hand-written behaviour
+//! lives in the `ritoclient` crate as extension traits, so regenerating this
+//! crate can never clobber it.
 //!
 //! Everything deserializes tolerantly - `#[serde(default)]`, unknown keys
 //! ignored - because these namespaces churn between patches and a caller always
@@ -38,8 +38,8 @@ pub struct RnetProductRegistryProduct {
 /// One patchline of a product - `live`, `pbe`, and so on.
 ///
 /// A record exists for every patchline the account is *entitled* to, which is
-/// not the same as installed; see
-/// [`Patchline::is_installed`](super::product_registry::Patchline::is_installed).
+/// not the same as installed: the install test is `install_full_path` being
+/// non-empty (the `ritoclient` crate's `PatchlineExt::is_installed`).
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]
 pub struct RnetProductRegistryPatchline {

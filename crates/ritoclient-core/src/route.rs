@@ -29,7 +29,7 @@ use std::fmt;
 /// `resource` may carry `{name}` placeholders, filled by [`Route::bind`]:
 ///
 /// ```
-/// use ritoclient_api::route::Route;
+/// use ritoclient_core::route::Route;
 ///
 /// const LAUNCH: Route = Route::new(
 ///     "product-launcher",
@@ -124,10 +124,10 @@ impl fmt::Display for Route {
 /// namespace serves several at a time (see the module docs).
 ///
 /// ```
-/// use ritoclient_api::{Route, routes};
+/// use ritoclient_core::{Route, routes};
 ///
 /// mod lifecycle {
-///     ritoclient_api::routes! {
+///     ritoclient_core::routes! {
 ///         namespace = "riot-client-lifecycle";
 ///
 ///         /// `POST` - "Hide the UX."

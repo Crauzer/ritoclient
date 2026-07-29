@@ -1,6 +1,6 @@
 //! The routes of `/riotclientapp`.
 
-crate::routes! {
+ritoclient_core::routes! {
     namespace = "riotclientapp";
 
     /// `POST /riotclientapp/v1/new-args` - hand a duplicate instance's argv to

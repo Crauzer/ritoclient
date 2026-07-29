@@ -21,41 +21,16 @@
 //!
 //! Hiding is reversible from the tray icon, and by [`LifecycleHandler::show`].
 //! Keeping it hidden for the length of a play session is orchestration rather
-//! than an endpoint - see [`crate::session::hide_for_play_session`].
+//! than an endpoint - that is `session::hide_for_play_session` in the
+//! `ritoclient` crate.
 
+pub mod endpoints;
 pub mod routes;
 
-use crate::LauncherError;
-use crate::client::Client;
-use crate::route::Route;
-
-use routes::{HIDE, SHOW};
-
-/// Drive one of this namespace's routes, which take no body and answer 204.
-///
-/// `pub(crate)` for [`crate::session`], whose re-assert loop calls
-/// [`routes::HIDE`] many times for one user-visible event and so cannot use the
-/// logging [`LifecycleHandler::hide`].
-pub(crate) fn post(client: &Client, route: Route) -> Result<(), LauncherError> {
-    let response =
-        client
-            .post(route)
-            .body("")
-            .send()
-            .map_err(|e| LauncherError::RiotClientUnreachable {
-                reason: e.to_string(),
-            })?;
-
-    if !response.is_success() {
-        return Err(LauncherError::RiotClientUnreachable {
-            reason: format!("HTTP {}", response.status()),
-        });
-    }
-    Ok(())
-}
+use ritoclient_core::client::{Client, RequestError, Response};
 
 /// The `/riot-client-lifecycle/v1` namespace. Obtained from
-/// [`Client::lifecycle`].
+/// [`ClientExt::lifecycle`](crate::ClientExt::lifecycle).
 pub struct LifecycleHandler<'a> {
     client: &'a Client,
 }
@@ -71,18 +46,13 @@ impl<'a> LifecycleHandler<'a> {
     /// required: the game talks to it for the whole session.
     ///
     /// Idempotent: hiding an already-hidden window answers 204 like any other,
-    /// which is what lets [`crate::session::hide_for_play_session`] re-assert it
-    /// blind.
-    pub fn hide(&self) -> Result<(), LauncherError> {
-        post(self.client, HIDE)?;
-        tracing::info!("Hid the Riot Client window");
-        Ok(())
+    /// which is what lets a session watcher re-assert it blind.
+    pub fn hide(&self) -> Result<Response, RequestError> {
+        self.client.endpoint(&endpoints::Hide).send()
     }
 
     /// `POST /riot-client-lifecycle/v1/show` - "Show the UX."
-    pub fn show(&self) -> Result<(), LauncherError> {
-        post(self.client, SHOW)?;
-        tracing::info!("Restored the Riot Client window");
-        Ok(())
+    pub fn show(&self) -> Result<Response, RequestError> {
+        self.client.endpoint(&endpoints::Show).send()
     }
 }

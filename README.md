@@ -9,12 +9,19 @@ current user can read.
 
 | Crate                                        | What it does                                                    |
 | -------------------------------------------- | --------------------------------------------------------------- |
-| [`ritoclient-api`](crates/ritoclient-api) | Transport, typed endpoints per namespace, and launch orchestration |
+| [`ritoclient`](crates/ritoclient)            | **Depend on this one.** Launch and session orchestration, plus the facade over the two below |
+| [`ritoclient-api`](crates/ritoclient-api)    | Typed namespaces and models - the generator's crate; nothing hand-written belongs in it |
+| [`ritoclient-core`](crates/ritoclient-core)  | Transport: the client, retries, routes, and the lockfile. Mechanism, no policy |
+
+The arrows point one way - `ritoclient` → `ritoclient-api` → `ritoclient-core` -
+and Cargo refusing a cycle is what keeps launcher policy out of generated code.
+See [`docs/design/layering.md`](docs/design/layering.md).
 
 ## Quick start
 
 ```rust
-use ritoclient_api::Client;
+use ritoclient::Client;
+use ritoclient::prelude::*;
 
 let client = Client::new()?;
 
@@ -25,7 +32,7 @@ for product in client.product_registry().products().unwrap_or_default() {
 }
 ```
 
-See [the crate README](crates/ritoclient-api/README.md) for the design in
+See [the crate README](crates/ritoclient/README.md) for the design in
 full, and the rendered docs for everything else.
 
 ## Development
@@ -38,19 +45,32 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --open
 ```
 
 CI runs all of the above on Windows *and* Linux, plus an MSRV check and a
-`cargo publish --dry-run`. Windows is the platform this actually targets; Linux
-is there to keep the non-Windows fallbacks compiling.
+`cargo package --workspace`. Windows is the platform this actually targets;
+Linux is there to keep the non-Windows fallbacks compiling.
 
 ### Examples need a live client
 
-Everything under `crates/ritoclient-api/examples/` talks to a real Riot Client,
+Everything under `crates/ritoclient/examples/` talks to a real Riot Client,
 so none of it runs in CI:
 
 ```bash
-cargo run -p ritoclient-api --example probe          # read-only survey
-cargo run -p ritoclient-api --example hide_and_show  # hides the window, then restores it
-cargo run -p ritoclient-api --example launch         # starts a game
+cargo run -p ritoclient --example probe          # read-only survey
+cargo run -p ritoclient --example hide_and_show  # hides the window, then restores it
+cargo run -p ritoclient --example launch         # starts a game
 ```
+
+## Documentation
+
+Doc comments carry what was measured about individual routes. [`docs/`](docs/) carries
+what spans them:
+
+- [**The plan**](docs/plans/api-surface-codegen.md) - where the work stands and what
+  is next
+- [**The survey**](docs/riot-client-local-api.md) - 1261 functions probed against a
+  live client; the crate's source data
+- [**Layout and prior art**](docs/design/endpoint-layout.md) - why it looks like this,
+  and how the endpoint shape was decided
+- [**Launch protocol**](docs/launch-protocol.md) · [**Consumers**](docs/consumers.md)
 
 ## Status
 

@@ -92,5 +92,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       # Catches a missing README, an unbuildable package, or a file that only
       # resolves inside the workspace - all of which otherwise surface at the
-      # moment of release.
-      - run: cargo publish -p ritoclient-api --all-features --dry-run
+      # moment of release. `package --workspace` rather than per-crate
+      # `publish --dry-run` because the three crates depend on each other with
+      # `=` pins that only exist on crates.io after a real release.
+      - run: cargo package --workspace --all-features

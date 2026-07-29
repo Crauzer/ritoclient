@@ -86,7 +86,7 @@ pub mod patchlines {
     ///
     /// Declared whether or not it is installed, which is why entitlement and
     /// installed-ness are different questions - see
-    /// [`Patchline::is_installed`](crate::models::product_registry::Patchline::is_installed).
+    /// [`PatchlineExt::is_installed`](crate::PatchlineExt::is_installed).
     pub const PBE: &str = "pbe";
 
     /// A promotional PC patchline.
@@ -100,7 +100,7 @@ pub mod secondary_patchlines {
     /// Holds League's game data - the `Game` subdirectory. Other products
     /// declare their own, which is why the relative path is read rather than
     /// assumed; see
-    /// [`Patchline::secondary_dir`](crate::models::product_registry::Patchline::secondary_dir).
+    /// [`PatchlineExt::secondary_dir`](crate::PatchlineExt::secondary_dir).
     pub const GAME_PATCH: &str = "game_patch";
 }
 
