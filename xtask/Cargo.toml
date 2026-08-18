@@ -1,0 +1,20 @@
+# Workspace tooling, never published. `cargo xtask ritoclient-snapshot` needs a
+# live client; `cargo xtask ritoclient-codegen` is offline and reads `schema/`.
+
+[package]
+name = "xtask"
+description = "Workspace tooling: schema snapshot and code generation"
+version = "0.0.0"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ritoclient-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = "0.8"

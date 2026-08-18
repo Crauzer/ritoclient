@@ -1,5 +1,6 @@
 //! The endpoints of `/product-launcher`.
 
+use ritoclient_core::endpoint::json_body;
 use ritoclient_core::{Endpoint, EndpointMeta, Method, RequestError, Route};
 
 use super::routes;
@@ -51,6 +52,67 @@ impl Endpoint for Eligibility<'_> {
     }
 }
 
+/// `DELETE /product-launcher/v1/products/{productId}/patchlines/{patchlineId}` -
+/// close the product the client launched. Measured: 204, and League gone in
+/// under six seconds.
+///
+/// **No body.** The route takes an optional `shouldTerminateProcess` that is
+/// not modelled: it is the one argument on this namespace we have not seen on
+/// the wire, and whether it belongs in a body or a query string is unconfirmed.
+/// Sending nothing leaves the client on whatever it defaults to, which is the
+/// behaviour that was measured.
+pub struct Close<'a> {
+    pub product_id: &'a str,
+    pub patchline_id: &'a str,
+}
+
+impl Endpoint for Close<'_> {
+    type Output = ();
+    const METHOD: Method = Method::Delete;
+    const ROUTE: Route = routes::PATCHLINE;
+
+    fn path(&self) -> String {
+        Self::ROUTE.bind(&[
+            ("productId", self.product_id),
+            ("patchlineId", self.patchline_id),
+        ])
+    }
+}
+
+/// `PUT /product-launcher/v1/products/{productId}/patchlines/{patchlineId}` -
+/// take ownership of a game that is already running.
+///
+/// The client's own words: *"Recover a session for a product that is already
+/// running, but Riot Client Services doesn't know about since it just started
+/// up."* Answers the same bare JSON string a launch does - a session id.
+///
+/// The pid rides in the body as a bare JSON number, which is this client's
+/// argument convention for a single non-path argument. **Unconfirmed against a
+/// live client**: the other reading is a query parameter, and nothing in the
+/// workspace models those yet.
+pub struct Adopt<'a> {
+    pub product_id: &'a str,
+    pub patchline_id: &'a str,
+    pub pid: i32,
+}
+
+impl Endpoint for Adopt<'_> {
+    type Output = String;
+    const METHOD: Method = Method::Put;
+    const ROUTE: Route = routes::PATCHLINE;
+
+    fn path(&self) -> String {
+        Self::ROUTE.bind(&[
+            ("productId", self.product_id),
+            ("patchlineId", self.patchline_id),
+        ])
+    }
+
+    fn body(&self) -> Result<Option<String>, RequestError> {
+        json_body(&self.pid)
+    }
+}
+
 /// `GET /product-launcher/v1/is-launch-request-pending` - whether a launch is
 /// already in flight.
 pub struct IsLaunchRequestPending;
@@ -72,6 +134,16 @@ pub const ALL: &[EndpointMeta] = &[
         name: "Eligibility",
         method: Method::Get,
         route: routes::ELIGIBILITY,
+    },
+    EndpointMeta {
+        name: "Close",
+        method: Method::Delete,
+        route: routes::PATCHLINE,
+    },
+    EndpointMeta {
+        name: "Adopt",
+        method: Method::Put,
+        route: routes::PATCHLINE,
     },
     EndpointMeta {
         name: "IsLaunchRequestPending",

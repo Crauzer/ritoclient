@@ -10,7 +10,7 @@ on that route in the source; these are the documents that span routes.
 | [`consumers.md`](./consumers.md) | Where this crate came from, how downstream depends on it, and what the `ts` feature currently costs |
 | [`design/endpoint-layout.md`](./design/endpoint-layout.md) | Why the crate is laid out this way, what other API crates do, and the endpoint-shape decision (taken: endpoint-as-a-type) |
 | [`design/layering.md`](./design/layering.md) | The three crates and which way they point - why launcher policy does not live in generated code |
-| [`plans/api-surface-codegen.md`](./plans/api-surface-codegen.md) | **The working plan.** Steps 2-5: snapshot, codegen, re-base, preamble |
+| [`plans/api-surface-codegen.md`](./plans/api-surface-codegen.md) | **The working plan.** Snapshot and generator built 2026-07-29; remaining: the other seven in-scope namespaces, then the preamble |
 
 ## Start here
 

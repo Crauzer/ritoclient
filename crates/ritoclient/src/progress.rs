@@ -25,7 +25,10 @@ pub enum LaunchStage {
     WaitingForClient,
     /// The client accepted the request.
     Launched,
-    /// League was already up; no request was sent.
+    /// The game was already up. Terminal for both routes that end that way -
+    /// the client already had a session, or we handed it the pid and it opened
+    /// one. `LaunchRoute` carries which; neither is a launch, so neither
+    /// reports [`LaunchStage::Launched`].
     AlreadyRunning,
     /// The request failed; the error itself is reported separately.
     Error,

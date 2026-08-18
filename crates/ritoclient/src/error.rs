@@ -32,17 +32,21 @@ pub enum LauncherError {
     #[error("The Riot Client did not accept the launch request: {reason}")]
     RiotClientUnreachable { reason: String },
 
-    /// The client understood the request and refused it: the player has not
-    /// accepted the Terms of Service, the game is not up to date, the patchline
-    /// is locked. Distinct from [`Self::RiotClientUnreachable`] because nothing
-    /// about the manager is wrong and retrying changes nothing - the remedy is
-    /// always something the player does in the Riot Client itself.
+    /// The client understood the request and refused it. On a launch: the
+    /// player has not accepted the Terms of Service, the game is not up to
+    /// date, the patchline is locked. Distinct from
+    /// [`Self::RiotClientUnreachable`] because nothing about the manager is
+    /// wrong and retrying changes nothing - the remedy is always something the
+    /// player does in the Riot Client itself.
+    ///
+    /// Not launch-specific: closing and adopting are refused the same way, and
+    /// `riot_error_code` is what says why.
     ///
     /// `riot_error_code` is Riot's own machine-readable tag (`eula_not_accepted`
     /// and friends), kept separate from the prose so a host can special-case the
     /// ones worth explaining without matching on English.
-    #[error("The Riot Client refused to launch the game: {message}")]
-    LaunchRefused {
+    #[error("The Riot Client refused the request: {message}")]
+    Refused {
         riot_error_code: String,
         message: String,
     },

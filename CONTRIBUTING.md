@@ -13,9 +13,17 @@ cargo fmt --all
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features
 ```
 
-CI runs all four on Windows and Linux, plus an MSRV check and a
-`cargo package --workspace`. The docs job is not decorative: it fails on a
+CI runs all four on Windows and Linux, plus an MSRV check, a
+`cargo package --workspace`, and a codegen drift check (regenerate, then
+`git diff --exit-code`). The docs job is not decorative: it fails on a
 broken intra-doc link, which is the most common way a doc comment rots here.
+
+Two workspace tasks, run through the `cargo xtask` alias:
+
+```bash
+cargo xtask ritoclient-snapshot   # re-take schema/ from a live Riot Client
+cargo xtask ritoclient-codegen    # regenerate crates/ritoclient-api/src, offline
+```
 
 ## The three crates
 
@@ -52,10 +60,12 @@ namespaces/<namespace>/
 ```
 
 This holds even for a namespace with a single route. The crate is aimed at the
-client's 126 namespaces and is slated to be written whole by a generator; a
-layout that changes shape at some size threshold cannot be a generator target,
-so there is no threshold. There is no protected file inside the crate - the
-plan is that regeneration wipes and rewrites all of it.
+client's 126 namespaces and **is written whole by the generator**: `cargo xtask
+ritoclient-codegen` wipes `src/` and rewrites it from `schema/`, and CI fails
+on any drift, so hand-editing a generated file cannot stick. A layout that
+changes shape at some size threshold cannot be a generator target, so there is
+no threshold. To add or change a namespace, edit `schema/overrides.toml`
+(names, spellings, doc prose - data, never code) and regenerate.
 
 Each `routes.rs` is one `routes!` invocation, which declares the constants and
 that namespace's `ALL` table from the same list - so a route cannot be added and
@@ -146,10 +156,11 @@ cargo run -p ritoclient --example hide_and_show  # hides the window, then restor
 cargo run -p ritoclient --example launch         # starts a game
 ```
 
-When a probe confirms or corrects a route spelling, put the finding in the route's
-doc comment. That is the only record of it - for now: once `schema/overrides.toml`
-exists (codegen step 2), measured knowledge single-homes there and the generator
-emits it, because a regenerated crate keeps nothing typed into it by hand.
+When a probe confirms or corrects a route spelling, record the finding in
+`schema/overrides.toml` and regenerate - measured knowledge single-homes there
+and the generator emits it, because a regenerated crate keeps nothing typed
+into it by hand. `schema/probes.json` is the snapshot's own ledger of what a
+live client answered per derived path.
 
 ## Commits and releases
 

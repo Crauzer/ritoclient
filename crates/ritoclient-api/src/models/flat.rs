@@ -27,6 +27,45 @@
 
 use serde::Deserialize;
 
+/// One session the client is tracking: what is running, and how it ended.
+///
+/// **`launchConfiguration` is deliberately absent.** It carries the game's argv,
+/// and inside that argv is an `rso_auth.authorization-key` - a credential the
+/// client mints per session. The crate's rule is that a session payload is
+/// stripped of it before it goes anywhere, and leaving the field out of the type
+/// makes that structural rather than something to remember. Reading argv back is
+/// a separate decision, and it comes with a redaction policy attached.
+///
+/// `phase` and `exit_reason` are enums on the wire (`Gameplay` / `Idle` / `None`
+/// / `Pending`, and `Exit` / `Interrupt` / `StillRunning` / `Timeout` /
+/// `Unknown`). They travel as `String` under the generator's tolerance policy, so
+/// a variant Riot adds does not break deserialization.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct ProductSessionSession {
+    #[serde(rename = "productId")]
+    pub product_id: String,
+    #[serde(rename = "patchlineId")]
+    pub patchline_id: String,
+    #[serde(rename = "patchlineFullName")]
+    pub patchline_full_name: String,
+    pub version: String,
+    /// `Gameplay` once the game is up. `Pending` while the client is still getting
+    /// it there, `Idle` for a session that exists but is not playing, `None` when
+    /// the client has nothing to say.
+    pub phase: String,
+    /// Meaningful only once the session has ended - `exit_reason` is what says
+    /// whether it has.
+    #[serde(rename = "exitCode")]
+    pub exit_code: i64,
+    /// `StillRunning` until the session ends, then `Exit` for a normal one and
+    /// `Interrupt` / `Timeout` / `Unknown` for the rest. This is the field that
+    /// answers "is it over?"; a game that died on startup gives a reason here
+    /// instead of just vanishing from the process table.
+    #[serde(rename = "exitReason")]
+    pub exit_reason: String,
+}
+
 /// A product and every patchline it declares, installed or not.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default)]

@@ -24,3 +24,4 @@
 mod flat;
 
 pub mod product_registry;
+pub mod product_session;

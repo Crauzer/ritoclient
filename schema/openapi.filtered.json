@@ -1,0 +1,2451 @@
+{
+  "components": {
+    "schemas": {
+      "DataPaths": {
+        "properties": {
+          "configRoot": {
+            "type": "string"
+          },
+          "dataRoot": {
+            "type": "string"
+          },
+          "localSettingsPath": {
+            "type": "string"
+          },
+          "userDataRoot": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LaunchRestrictionLaunchRestrictions": {
+        "properties": {
+          "productId": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "restrictionData": {
+            "$ref": "#/components/schemas/LaunchRestrictionrestrictionData"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LaunchRestrictionrestrictionData": {
+        "properties": {
+          "expirationMillis": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PatchConfiguration": {
+        "properties": {
+          "cache_path": {
+            "type": "string"
+          },
+          "cache_size": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PatchError": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/PatchErrorCode",
+            "default": "OK"
+          },
+          "locked_file_info": {
+            "$ref": "#/components/schemas/PatchLockedFileInfo",
+            "nullable": true
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchErrorCode": {
+        "enum": [
+          "OK",
+          "Unspecified",
+          "Cancelled",
+          "NotEnoughDiskSpace",
+          "AccessDenied",
+          "FileNotFound",
+          "DownloaderConnection",
+          "DownloaderClientError",
+          "DownloaderServerError",
+          "DownloaderAuthorization",
+          "DownloadedCorruptData",
+          "CorruptData",
+          "AddressResolutionFailed",
+          "FileLocked",
+          "InvalidArgument"
+        ],
+        "type": "string"
+      },
+      "PatchInstall": {
+        "properties": {
+          "excluded_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ipv4_only": {
+            "type": "boolean"
+          },
+          "metadata_path": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "requests": {
+            "$ref": "#/components/schemas/PatchRequests"
+          },
+          "seed_path": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PatchStatus"
+          }
+        },
+        "type": "object"
+      },
+      "PatchInstallParams": {
+        "properties": {
+          "excluded_paths": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "ipv4_only": {
+            "type": "boolean"
+          },
+          "metadata_path": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "seed_path": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchLockedFileInfo": {
+        "properties": {
+          "process_id": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "process_name": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchManifestProgress": {
+        "properties": {
+          "bytes_to_download": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "downloaded_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PatchPatchRequest": {
+        "properties": {
+          "allowedHttpFallbackHostnames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bundlesUrl": {
+            "type": "string"
+          },
+          "delete_foreign_paths": {
+            "type": "boolean"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "max_download_speed": {
+            "format": "int32",
+            "maximum": 4294967295,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repair": {
+            "type": "boolean"
+          },
+          "stage": {
+            "maximum": 255,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "temp_path": {
+            "type": "string"
+          },
+          "update_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchPatchStatus": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/PatchError",
+            "nullable": true
+          },
+          "progress": {
+            "$ref": "#/components/schemas/PatchProgress"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PatchPatchStatusState",
+            "default": "updating"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "update_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchPatchStatusState": {
+        "enum": [
+          "updating",
+          "out_of_date",
+          "up_to_date",
+          "not_installed",
+          "pending_verify",
+          "repairing"
+        ],
+        "type": "string"
+      },
+      "PatchPhase": {
+        "enum": [
+          "None",
+          "Manifest",
+          "Update",
+          "Repair"
+        ],
+        "type": "string"
+      },
+      "PatchPreviewDiff": {
+        "properties": {
+          "cache_read_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cache_write_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "disk_read_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "disk_size_diff": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "disk_write_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "network_bytes_compressed": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "new_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "out_of_date": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "PatchPreviewRequest": {
+        "properties": {
+          "fast": {
+            "type": "boolean"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "stage": {
+            "maximum": 255,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "update_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchPreviewStatus": {
+        "properties": {
+          "diff": {
+            "$ref": "#/components/schemas/PatchPreviewDiff"
+          },
+          "error": {
+            "$ref": "#/components/schemas/PatchError",
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/PatchPreviewStatusState",
+            "default": "pending"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "update_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchPreviewStatusState": {
+        "enum": [
+          "pending",
+          "done",
+          "inconsistent"
+        ],
+        "type": "string"
+      },
+      "PatchProgress": {
+        "properties": {
+          "manifest": {
+            "$ref": "#/components/schemas/PatchManifestProgress",
+            "nullable": true
+          },
+          "phase": {
+            "$ref": "#/components/schemas/PatchPhase",
+            "default": "None"
+          },
+          "progress": {
+            "format": "double",
+            "type": "number"
+          },
+          "repair": {
+            "$ref": "#/components/schemas/PatchRepairProgress",
+            "nullable": true
+          },
+          "update": {
+            "$ref": "#/components/schemas/PatchUpdateProgress",
+            "nullable": true
+          }
+        },
+        "type": "object"
+      },
+      "PatchRepairProgress": {
+        "properties": {
+          "bytes_to_repair": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "files_to_repair": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repaired_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repaired_files": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PatchRepairRequest": {
+        "properties": {
+          "allowed_http_fallback_hostnames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "delete_foreign_paths": {
+            "type": "boolean"
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "manifest_url": {
+            "type": "string"
+          },
+          "max_download_speed": {
+            "format": "int32",
+            "maximum": 4294967295,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PatchRepairStatus": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/PatchError",
+            "nullable": true
+          },
+          "manifest_url": {
+            "type": "string"
+          },
+          "repair_progress": {
+            "$ref": "#/components/schemas/PatchRepairProgress"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PatchRepairStatusState",
+            "default": "pending"
+          }
+        },
+        "type": "object"
+      },
+      "PatchRepairStatusState": {
+        "enum": [
+          "pending",
+          "in_progress",
+          "canceled",
+          "done"
+        ],
+        "type": "string"
+      },
+      "PatchRequests": {
+        "properties": {
+          "patch": {
+            "$ref": "#/components/schemas/PatchPatchRequest",
+            "nullable": true
+          },
+          "preview": {
+            "$ref": "#/components/schemas/PatchPreviewRequest",
+            "nullable": true
+          },
+          "repair": {
+            "$ref": "#/components/schemas/PatchRepairRequest",
+            "nullable": true
+          },
+          "seed": {
+            "$ref": "#/components/schemas/PatchSeedRequest",
+            "nullable": true
+          }
+        },
+        "type": "object"
+      },
+      "PatchSeedRequest": {
+        "properties": {
+          "allowedHttpFallbackHostnames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "bundlesUrl": {
+            "type": "string"
+          },
+          "delete_foreign_paths": {
+            "type": "boolean"
+          },
+          "headers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "max_download_speed": {
+            "format": "int32",
+            "maximum": 4294967295,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "stage": {
+            "maximum": 255,
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "update_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchSeedStatus": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/PatchError",
+            "nullable": true
+          },
+          "progress": {
+            "$ref": "#/components/schemas/PatchProgress"
+          },
+          "state": {
+            "$ref": "#/components/schemas/PatchSeedStatusState",
+            "default": "out_of_date"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "update_patterns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PatchSeedStatusState": {
+        "enum": [
+          "seeding",
+          "out_of_date",
+          "up_to_date",
+          "pending_verify"
+        ],
+        "type": "string"
+      },
+      "PatchStatus": {
+        "properties": {
+          "patch": {
+            "$ref": "#/components/schemas/PatchPatchStatus",
+            "nullable": true
+          },
+          "preview": {
+            "$ref": "#/components/schemas/PatchPreviewStatus",
+            "nullable": true
+          },
+          "repair": {
+            "$ref": "#/components/schemas/PatchRepairStatus",
+            "nullable": true
+          },
+          "seed": {
+            "$ref": "#/components/schemas/PatchSeedStatus",
+            "nullable": true
+          }
+        },
+        "type": "object"
+      },
+      "PatchUpdateProgress": {
+        "properties": {
+          "bytes_to_download": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "bytes_to_read": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "bytes_to_write": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "downloaded_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "read_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "stage": {
+            "maximum": 255,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "written_bytes": {
+            "format": "int64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ProductSessionHeartbeatInfo": {
+        "properties": {
+          "phase": {
+            "$ref": "#/components/schemas/ProductSessionProductPhase",
+            "default": "None"
+          },
+          "sessionTTL": {
+            "format": "int32",
+            "maximum": 4294967295,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ProductSessionLaunchConfiguration": {
+        "properties": {
+          "arguments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "executable": {
+            "type": "string"
+          },
+          "locale": {
+            "nullable": true,
+            "type": "string"
+          },
+          "voiceLocale": {
+            "nullable": true,
+            "type": "string"
+          },
+          "workingDirectory": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProductSessionProductPhase": {
+        "enum": [
+          "None",
+          "Pending",
+          "Idle",
+          "Gameplay"
+        ],
+        "type": "string"
+      },
+      "ProductSessionSession": {
+        "properties": {
+          "exitCode": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "exitReason": {
+            "$ref": "#/components/schemas/ProductSessionTerminationReason",
+            "nullable": true
+          },
+          "isInternal": {
+            "type": "boolean"
+          },
+          "launchConfiguration": {
+            "$ref": "#/components/schemas/ProductSessionLaunchConfiguration"
+          },
+          "patchlineFullName": {
+            "type": "string"
+          },
+          "patchlineId": {
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/ProductSessionProductPhase",
+            "default": "None"
+          },
+          "productId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProductSessionSessionHeartbeat": {
+        "properties": {
+          "phase": {
+            "$ref": "#/components/schemas/ProductSessionProductPhase",
+            "default": "None"
+          },
+          "sessionTTL": {
+            "format": "int32",
+            "maximum": 4294967295,
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ProductSessionTerminationReason": {
+        "enum": [
+          "StillRunning",
+          "Interrupt",
+          "Exit",
+          "Timeout",
+          "Unknown"
+        ],
+        "type": "string"
+      }
+    }
+  },
+  "info": {
+    "title": "",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/data-store/v1/install-settings/{path}": {
+      "get": {
+        "operationId": "GetDataStoreV1InstallSettingsByPath",
+        "parameters": [
+          {
+            "allowReserved": true,
+            "description": "The path to the settings key",
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get the data for the specified key from the install settings.",
+        "tags": [
+          "data-store"
+        ]
+      },
+      "post": {
+        "operationId": "PostDataStoreV1InstallSettingsByPath",
+        "parameters": [
+          {
+            "allowReserved": true,
+            "description": "The path to the settings key",
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "description": "The data to assign to the key",
+          "required": true,
+          "x-param-name": "data"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Set the data for the specified key from the install settings.",
+        "tags": [
+          "data-store"
+        ]
+      }
+    },
+    "/data-store/v1/internal/region-changed": {
+      "get": {
+        "operationId": "GetDataStoreV1InternalRegionChanged",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns whether the authoritative region has changed during this session.",
+        "tags": [
+          "data-store",
+          "Internal"
+        ]
+      },
+      "post": {
+        "operationId": "PostDataStoreV1InternalRegionChanged",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "boolean"
+              }
+            }
+          },
+          "description": "Whether the authoritiative region has changed during this session.",
+          "required": true,
+          "x-param-name": "regionChanged"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Mirrors Localization's session-scoped League locale override state into DataStore.",
+        "tags": [
+          "data-store",
+          "Internal"
+        ]
+      }
+    },
+    "/data-store/v1/paths": {
+      "get": {
+        "operationId": "GetDataStoreV1Paths",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataPaths"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get the data store paths.",
+        "tags": [
+          "data-store"
+        ]
+      }
+    },
+    "/data-store/v1/product-settings/products/{productId}/patchlines/{patchlineId}": {
+      "get": {
+        "operationId": "GetDataStoreV1ProductSettingsProductsByProductIdPatchlinesByPatchlineId",
+        "parameters": [
+          {
+            "description": "The product to get settings for",
+            "in": "path",
+            "name": "productId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "The patchline to get settings for",
+            "in": "path",
+            "name": "patchlineId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get all settings for the specified product.",
+        "tags": [
+          "data-store"
+        ]
+      },
+      "post": {
+        "operationId": "PostDataStoreV1ProductSettingsProductsByProductIdPatchlinesByPatchlineId",
+        "parameters": [
+          {
+            "description": "The product to modify settings for",
+            "in": "path",
+            "name": "productId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "The patchline to modify settings for",
+            "in": "path",
+            "name": "patchlineId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "description": "The data to assign to the key",
+          "required": true,
+          "x-param-name": "data"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Set all settings for the specified product.",
+        "tags": [
+          "data-store"
+        ]
+      }
+    },
+    "/data-store/v1/product-settings/products/{productId}/patchlines/{patchlineId}/{path}": {
+      "get": {
+        "operationId": "GetDataStoreV1ProductSettingsProductsByProductIdPatchlinesByPatchlineIdByPath",
+        "parameters": [
+          {
+            "description": "The product to get settings for",
+            "in": "path",
+            "name": "productId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "The patchline to get settings for",
+            "in": "path",
+            "name": "patchlineId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "allowReserved": true,
+            "description": "The path to the settings key",
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get the data for the specified key from the settings for the specified product.",
+        "tags": [
+          "data-store"
+        ]
+      },
+      "post": {
+        "operationId": "PostDataStoreV1ProductSettingsProductsByProductIdPatchlinesByPatchlineIdByPath",
+        "parameters": [
+          {
+            "description": "The product to modify settings for",
+            "in": "path",
+            "name": "productId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "The patchline to modify settings for",
+            "in": "path",
+            "name": "patchlineId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "allowReserved": true,
+            "description": "The path to the settings key",
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object"
+              }
+            }
+          },
+          "description": "The data to assign to the key",
+          "required": true,
+          "x-param-name": "data"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Set the data for the specified key from the settings for the specified product.",
+        "tags": [
+          "data-store"
+        ]
+      }
+    },
+    "/data-store/v1/reload-product-settings/products/{productId}/patchlines/{patchlineId}": {
+      "post": {
+        "operationId": "PostDataStoreV1ReloadProductSettingsProductsByProductIdPatchlinesByPatchlineId",
+        "parameters": [
+          {
+            "description": "The product to reload settings for",
+            "in": "path",
+            "name": "productId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "The patchline to reload settings for",
+            "in": "path",
+            "name": "patchlineId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Reload all settings for the specified product.",
+        "tags": [
+          "data-store"
+        ]
+      }
+    },
+    "/data-store/v1/system-settings/{path}": {
+      "get": {
+        "operationId": "GetDataStoreV1SystemSettingsByPath",
+        "parameters": [
+          {
+            "allowReserved": true,
+            "description": "The path to the settings key",
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get the setting for the specified key. This API is provided for host applications.",
+        "tags": [
+          "data-store"
+        ]
+      }
+    },
+    "/launch-restriction/v1/products": {
+      "get": {
+        "description": "WARNING: Should not be used to enforce a restriction.\nThese restrictions are based on data from an unsigned user info token thatplayers *can* tamper with./n/nLaunch restrictions include restrictions with a type of TIME_BAN or PERMANENT_BAN",
+        "operationId": "GetLaunchRestrictionV1Products",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns all product ids the player is launch restricted for",
+        "tags": [
+          "Plugins",
+          "Plugin launch-restriction",
+          "Subscribable",
+          "Internal"
+        ]
+      }
+    },
+    "/launch-restriction/v1/ready": {
+      "get": {
+        "operationId": "GetLaunchRestrictionV1Ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns true when the plugin is ready. Consumers are expected to wait until the plugin is ready to request restrictions",
+        "tags": [
+          "Plugins",
+          "Plugin launch-restriction",
+          "Subscribable",
+          "Internal"
+        ]
+      }
+    },
+    "/launch-restriction/v1/restrictions": {
+      "get": {
+        "description": "WARNING: Should not be used to enforce a restriction.\nThese restrictions are based on data from an unsigned user info token thatplayers *can* tamper with./n/nLaunch restrictions include restrictions with a type of TIME_BAN or PERMANENT_BAN",
+        "operationId": "GetLaunchRestrictionV1Restrictions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LaunchRestrictionLaunchRestrictions"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns all launch restrictions for the logged in player",
+        "tags": [
+          "Plugins",
+          "Plugin launch-restriction",
+          "Subscribable",
+          "Internal"
+        ]
+      }
+    },
+    "/launch-restriction/v1/restrictions/{product-id}": {
+      "get": {
+        "description": "WARNING: Should not be used to enforce a restriction.\nThese restrictions are based on data from an unsigned user info token thatplayers *can* tamper with./n/nLaunch restrictions include restrictions with a type of TIME_BAN or PERMANENT_BAN",
+        "operationId": "GetLaunchRestrictionV1RestrictionsByProductId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LaunchRestrictionLaunchRestrictions"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns all launch restrictions for the logged in player and given product-id",
+        "tags": [
+          "Plugins",
+          "Plugin launch-restriction",
+          "Subscribable",
+          "Internal"
+        ]
+      }
+    },
+    "/patch/v1/configuration": {
+      "get": {
+        "description": "This endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "GetPatchV1Configuration",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchConfiguration"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Retrieve the configuration",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      },
+      "put": {
+        "description": "\n**Data**\n* `cache_path`:  Path to the global cache used to store downloaded chunks.\n* `cache_size`: Cache size in bytes.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "PutPatchV1Configuration",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchConfiguration"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "params"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Configure plugin settings such as cache size and location",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs": {
+      "get": {
+        "description": "This endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "GetPatchV1Installs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get list of installs on disk",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Subscribable",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}": {
+      "delete": {
+        "description": "\nDelete an install resource. All outstanding requests will be cancelled but the files on disk will be left intact.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "DeletePatchV1InstallsByInstallId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Delete the install resource",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      },
+      "get": {
+        "description": "This endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "GetPatchV1InstallsByInstallId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchInstall"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get detailed information about an install, including current requests and status.",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Subscribable",
+          "Deprecated"
+        ]
+      },
+      "put": {
+        "description": "\n**Data**\n* `excluded_paths`: List of paths (relative to the install root) that are excluded from the update. Files under these paths won't be checked during the verification and repair processes.\n* `metadata_path`:  The location for the install .db and .manifest files. The extension will be directly appended to this path.\n* `seed_path`: The location where updated chunks will be stored for this install when performing a seed operation, and the location where chunks will be sourced from when performing a patch operation.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "PutPatchV1InstallsByInstallId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchInstallParams"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "params"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Register a new install",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/requests/patch": {
+      "delete": {
+        "description": "\nDelete the patch request, interrupting any ongoing patching operations.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "DeletePatchV1InstallsByInstallIdRequestsPatch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Delete patch request for install",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      },
+      "put": {
+        "description": "\n**Note**\n* If a request already exists it will be replaced by the new resource.\n\n**Data**\n* `headers`: Headers to send with every request. If the manifest url is behind SCD then a Cookie header is required.\n* `url`: Url for the release manifest.\n* `max_download_speed`: Maximum download speed, in bytes/sec. If zero then no limits will be applied.\n* `repair`: Whether a full repair should be performed prior to the update.\n* `tags`: Tags to filter which content gets patched. https://riotsdk.rpg.riotgames.com/docs/for-users/patching/onboarding/localization/\n* `stage`: Only patch up to the specified stage.\n* `temp_path`: (Optional) Custom directory to use for working storage during patching.\n* `delete_foreign_paths`:  (optional) If true, paths that are not considered part of the install will be checked during the verification and repair processes and removed.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "PutPatchV1InstallsByInstallIdRequestsPatch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchPatchRequest"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "params"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Submit patch request for install",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/requests/preview": {
+      "delete": {
+        "description": "\nDelete the preview request, interrupting any ongoing preview operations.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "DeletePatchV1InstallsByInstallIdRequestsPreview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Delete preview request for install",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      },
+      "put": {
+        "description": "\n**Notes**\n* The request contains all the info needed, including the full url to the release manifest, http headers and tags.\n* If a request already exists it will be replaced by the new resource.\n\n**Data**\n* `headers`: Headers to send with every request. If the manifest url is behind SCD then a Cookie header is required.\n* `url`: Url for the release manifest.\n* `stage`: Only patch up to the specified stage.\n* `fast`: Whether to perform a fast (but less accurate) estimation.\n* `tags`: Tags to filter which content gets patched. https://riotsdk.rpg.riotgames.com/docs/for-users/patching/onboarding/localization/\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "PutPatchV1InstallsByInstallIdRequestsPreview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchPreviewRequest"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "params"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Submit preview request for install",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/requests/repair": {
+      "delete": {
+        "description": "This endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "DeletePatchV1InstallsByInstallIdRequestsRepair",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Delete the repair request, interrupting any ongoing repair operations.",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      },
+      "put": {
+        "description": "\n**Notes**\n* Allows you to perform a repair on a set of files or a full repair without having to wait or game client to exit. Only use this if you're\nabsolutely certain that the files are not currently in use.\n* Game is responsible for displaying repair progress and can get progress using the GET /patch/v1/installs/{install-id}/status/repair endpoint.\n\n**Data**\n* `files`: a list of file paths for files that need to be repaired. If none specified then the patcher will perform a full repair. File paths must\nbe relative to the install root.\n* `manifest_url`: Url for the release manifest.\n* `headers`: Headers to send with every request. If the manifest url is behind SCD then a Cookie header is required.\n* `max_download_speed`: Maximum download speed, in bytes/sec. If zero then no limits will be applied.\n* `allowed_http_fallback_hostnames`: List of hostnames for which we'll fall back to HTTP instead of HTTPS if they resolve to an RFC1918 private IP address.\n* `delete_foreign_paths`:  (optional) If true, paths that are not considered part of the install will be checked during the verification and repair processes and removed.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "PutPatchV1InstallsByInstallIdRequestsRepair",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchRepairRequest"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "params"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Triggers a repair operation",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/requests/seed": {
+      "delete": {
+        "description": "\nDelete the seed request, interrupting any ongoing seed operations.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "DeletePatchV1InstallsByInstallIdRequestsSeed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Delete seed request for install",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      },
+      "put": {
+        "description": "\n**Notes**\n* Seeding will download any chunks needed to the seed path, but will not modify any files in the install directory. The seed path is specified in the install.\n* If a request already exists it will be replaced by the new resource. https://riotsdk.rpg.riotgames.com/docs/for-users/patching/concepts/seeding/\n\n**Data**\n* `headers`: Headers to send with every request. If the manifest url is behind SCD then a Cookie header is required.\n* `url`: Url for the release manifest.\n* `max_download_speed`: Maximum download speed, in bytes/sec. If zero then no limits will be applied.\n* `stage`: Only patch up to the specified stage.\n* `tags`: Tags to filter which content gets patched. https://riotsdk.rpg.riotgames.com/docs/for-users/patching/onboarding/localization/\n* `delete_foreign_paths`:  (optional) If true, paths that are not considered part of the install will be checked during the verification and repair processes and removed.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "PutPatchV1InstallsByInstallIdRequestsSeed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchSeedRequest"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "params"
+        },
+        "responses": {
+          "204": {
+            "description": "No content"
+          }
+        },
+        "summary": "Submit seed request for install",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/status": {
+      "get": {
+        "description": "\n**Note**\n* The status is always relative to a manifest and set of tags, specified by the `url` and `tags` fields respectively.\n* If there is any work in progress, `url` and `tags` will match those from the request.\n* If there are no pending requests, `url` and `tags` will match the files in the install folder.\n\n**Responses**\n\n**Patch**\n* `updating`: Currently performing a patching / seeding request.\n* `out_of_date`: The last request was partially completed and more work needs to be done before all files are in sync with the release manifest.\n* `up_to_date`: The last request completed successfully and files are in sync with the release manifest.\n* `not_installed`: The last request completed successfully and detected that the install-id is not installed.\n* `pending_verify`: The last request has not completed verification step.\n\n**Seed**\n* `seeding`: Currently performing a seeding request.\n* `out_of_date`: The last request was partially completed and more work needs to be done before all data needed to update the install has been downloaded.\n* `up_to_date`: The last request completed successfully and all data needed to update the install has been downloaded.\n* `pending_verify`: The last request has not completed verification step.\n\n**Preview**\n* `pending`: The preview request has not finished.\n* `done`: The last preview request completed successfully.\n\n**Repair**\n* `manifest_url`: the url of the release manifest.\n* `repair_progress`: The progress of the repair operation. Contains:\n    * `bytes_to_repair`: Total number of bytes to read.\n    * `files_to_repair`: Total number of files to read.\n    * `repaired_bytes`: Number of bytes read from disk so far.\n    * `repaired_files`: Number of files read from disk so far.\n* `state`: The overall state of the repair operation. Possible states include:\n    * `pending`: No repair requests have been made.\n    * `in_progress`: Repair is in progress.\n    * `canceled`: The repair operation was canceled.\n    * `done`: Repair operation is complete.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "GetPatchV1InstallsByInstallIdStatus",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchStatus"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Retrieve the current patch, preview and seed statuses of an install resource",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Subscribable",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/status/patch": {
+      "get": {
+        "description": "\n**Notes**\n* The status is always relative to a manifest and set of tags, specified by the `url` and `tags` fields respectively.\n* If there is any work in progress, `url` and `tags` will match those from the request.\n* If there are no pending requests, `url` and `tags` will match the files in the install folder.\n\n**Response**\n\nThe `state` field will is populated based on the current work with the following values:\n* `updating`: Currently performing a patching / seeding request.\n* `out_of_date`: The last request was partially completed and more work needs to be done before all files are in sync with the release manifest.\n* `up_to_date`: The last request completed successfully and files are in sync with the release manifest.\n* `not_installed`: The last request completed successfully and detected that the install-id is not installed.\n* `pending_verify`: The last request has not completed verification step.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "GetPatchV1InstallsByInstallIdStatusPatch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchPatchStatus"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Retrieve the current patch status of an install.",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Subscribable",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/status/preview": {
+      "get": {
+        "description": "\n**Response**\n\nThe `state` field will is populated based on the current work with the following values:\n* `pending`: The preview request has not finished.\n* `done`: The last preview request completed successfully.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "GetPatchV1InstallsByInstallIdStatusPreview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchPreviewStatus"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Retrieve the current preview status of an install.",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Subscribable",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/status/repair": {
+      "get": {
+        "description": "\n**Response**\n* `manifest_url`: the url of the release manifest.\n* `repair_progress`: The progress of the repair operation. Contains:\n    * `bytes_to_repair`: Total number of bytes to read.\n    * `files_to_repair`: Total number of files to read.\n    * `repaired_bytes`: Number of bytes read from disk so far.\n    * `repaired_files`: Number of files read from disk so far.\n* `state`: The overall state of the repair operation.\n    * `pending`: No repair requests have been made.\n    * `in_progress`: Repair is in progress.\n    * `canceled`: The repair operation was canceled.\n    * `done`: Repair operation is complete.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "GetPatchV1InstallsByInstallIdStatusRepair",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchRepairStatus"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Retrieve the current repair status of an install.",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Subscribable",
+          "Deprecated"
+        ]
+      }
+    },
+    "/patch/v1/installs/{install-id}/status/seed": {
+      "get": {
+        "description": "\n**Notes**\n* If there is any work in progress, `url` and `tags` will match those from the request.\n* If there are no pending requests, `url` and `tags` will match the files in the install folder.\n\n**Response**\n\nThe `state` field will is populated based on the current work with the following values:\n* `seeding`: Currently performing a seeding request.\n* `out_of_date`: The last request was partially completed and more work needs to be done before all files are in sync with the release manifest.\n* `up_to_date`: The last request completed successfully and files are in sync with the release manifest.\n* `pending_verify`: The last request has not completed verification step.\n\n\nThis endpoint is deprecated and will be removed December 2026. Please use the rpatch C API instead.",
+        "operationId": "GetPatchV1InstallsByInstallIdStatusSeed",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "install-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatchSeedStatus"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Retrieve the current seed status of an install.",
+        "tags": [
+          "Plugins",
+          "Plugin patch",
+          "Subscribable",
+          "Deprecated"
+        ]
+      }
+    },
+    "/product-session/v1/data/path": {
+      "get": {
+        "operationId": "GetProductSessionV1DataPath",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns the standard data folder for your application",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    },
+    "/product-session/v1/data/path/{patchline-name}": {
+      "get": {
+        "operationId": "GetProductSessionV1DataPathByPatchlineName",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patchline-name",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns the standard logs folder for a given full patchline name.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    },
+    "/product-session/v1/external-sessions": {
+      "get": {
+        "operationId": "GetProductSessionV1ExternalSessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/ProductSessionSession"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get all sessions across products external to Riot Client. e.g. just games and not the UX product.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session",
+          "Subscribable"
+        ]
+      }
+    },
+    "/product-session/v1/external-sessions/{session-id}": {
+      "get": {
+        "operationId": "GetProductSessionV1ExternalSessionsBySessionId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSessionSession"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get the session for a specific session ID for a product external to Riot Client. e.g. just games and not the UX product.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session",
+          "Subscribable"
+        ]
+      }
+    },
+    "/product-session/v1/heartbeat/{session-id}": {
+      "get": {
+        "operationId": "GetProductSessionV1HeartbeatBySessionId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Deprecated. Please use POST /product-session/v2/heartbeat.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    },
+    "/product-session/v1/host-session": {
+      "get": {
+        "description": "A 'host session' may be created for the application that Foundation is running within, used on mobile or console platforms.",
+        "operationId": "GetProductSessionV1HostSession",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSessionSession"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Fetches the session of the 'host app', if it exists for this platform.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session",
+          "Subscribable"
+        ]
+      },
+      "post": {
+        "description": "A 'host session' may be created for the application that Foundation is running within, used on mobile or console platforms.",
+        "operationId": "PostProductSessionV1HostSession",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSessionSession"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "session"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Handles creation of a new session for the 'host app'",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    },
+    "/product-session/v1/host-session/id": {
+      "get": {
+        "description": "A 'host session' may be created for the application that Foundation is running within, used on mobile or console platforms.",
+        "operationId": "GetProductSessionV1HostSessionId",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Fetches the session ID of the 'host app', if it exists for this platform.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session",
+          "Subscribable"
+        ]
+      }
+    },
+    "/product-session/v1/logs/path": {
+      "get": {
+        "operationId": "GetProductSessionV1LogsPath",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns the standard logs folder for your application",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    },
+    "/product-session/v1/logs/path/{patchline-name}": {
+      "get": {
+        "operationId": "GetProductSessionV1LogsPathByPatchlineName",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "patchline-name",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Returns the standard logs folder for a given full patchline name.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    },
+    "/product-session/v1/session-heartbeats/{session-id}": {
+      "get": {
+        "description": "The heartbeat is split out from the normal session endpoint because it changes frequently, and it would be slow to notify all the subscribers that care about game starting and stopping but not heartbeats.",
+        "operationId": "GetProductSessionV1SessionHeartbeatsBySessionId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSessionSessionHeartbeat"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "[Only intended to be called by product launchers, like Riot Client.] Get the heartbeat for a specific session ID.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session",
+          "Subscribable"
+        ]
+      }
+    },
+    "/product-session/v1/sessions": {
+      "get": {
+        "operationId": "GetProductSessionV1Sessions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/ProductSessionSession"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Get all sessions across products.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session",
+          "Subscribable"
+        ]
+      }
+    },
+    "/product-session/v1/sessions/{session-id}": {
+      "delete": {
+        "operationId": "DeleteProductSessionV1SessionsBySessionId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSessionSession"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "session"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "[Only intended to be called by product launchers, like Riot Client.] Handles deleting a session.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      },
+      "get": {
+        "operationId": "GetProductSessionV1SessionsBySessionId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductSessionSession"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "[Only intended to be called by product launchers, like Riot Client.] Get the session for a specific session ID.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session",
+          "Subscribable"
+        ]
+      },
+      "post": {
+        "operationId": "PostProductSessionV1SessionsBySessionId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSessionSession"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "session"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Handles creation of a new session.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    },
+    "/product-session/v2/heartbeat": {
+      "post": {
+        "description": "* Call this endpoint periodically to verify that Riot Client is still responding.\n\n* Upon your product entering the 'Gameplay' phase, Riot Client will lock patching and prevent updates to products or Riot Client in the case of a crash and restart, prioritizing launching the game promptly.\n\n* Products should include a 'User-Agent' header per RFC-0031d. \n\n* If this call fails and your sessionID is valid, then you can begin the recovery process specified in RFC-1064.\n\n* Riot Client expects this heartbeat from your application on a regular interval (once every 10-60 seconds) in order to make sure your application is not hung or otherwise unresponsive.",
+        "operationId": "PostProductSessionV2Heartbeat",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSessionHeartbeatInfo"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "heartbeat-info"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Periodic heartbeat made by products to update Riot Client with state of gameplay, and to verify connectivity to Riot Client. \n\nSessionId is derived from 'session' HTTP header, or websocket authentication.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    },
+    "/product-session/v2/heartbeat-internal/{session-id}": {
+      "post": {
+        "operationId": "PostProductSessionV2HeartbeatInternalBySessionId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSessionHeartbeatInfo"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "heartbeat-info"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Internal endpoint for updating the heartbeat of an existing session.",
+        "tags": [
+          "Plugins",
+          "Plugin product-session",
+          "Internal"
+        ]
+      }
+    },
+    "/product-session/v2/heartbeat/{session-id}": {
+      "post": {
+        "description": "* Call this endpoint periodically to verify that Riot Client is still responding.\n\n* Upon your product entering the 'Gameplay' phase, Riot Client will lock patching and prevent updates to products or Riot Client in the case of a crash and restart, prioritizing launching the game promptly.\n\n* Products should include a 'User-Agent' header per RFC-0031d. \n\n* If this call fails and your sessionID is valid, then you can begin the recovery process specified in RFC-1064.\n\n* Riot Client expects this heartbeat from your application on a regular interval (once every 10-60 seconds) in order to make sure your application is not hung or otherwise unresponsive.",
+        "operationId": "PostProductSessionV2HeartbeatBySessionId",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session-id",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductSessionHeartbeatInfo"
+              }
+            }
+          },
+          "description": "",
+          "required": true,
+          "x-param-name": "heartbeat-info"
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Periodic heartbeat made by products to update Riot Client with state of gameplay, and to verify connectivity to Riot Client. ",
+        "tags": [
+          "Plugins",
+          "Plugin product-session"
+        ]
+      }
+    }
+  }
+}

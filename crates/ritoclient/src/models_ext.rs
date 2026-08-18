@@ -9,6 +9,7 @@
 use std::path::PathBuf;
 
 use ritoclient_api::models::product_registry::{Patchline, Product};
+use ritoclient_api::models::product_session::Session;
 
 /// Behaviour for [`Product`].
 pub trait ProductExt {
@@ -66,6 +67,58 @@ impl PatchlineExt for Patchline {
             return None;
         }
         Some(root.join(&relative.relative_path))
+    }
+}
+
+/// The wire spellings of `ProductSessionProductPhase`, which the generated
+/// model carries as a `String` so a variant Riot adds cannot break
+/// deserialization. Private because reading them is what [`SessionExt`] is for.
+mod phases {
+    pub const GAMEPLAY: &str = "Gameplay";
+}
+
+/// The wire spellings of `ProductSessionTerminationReason`. `STILL_RUNNING` is
+/// the one that matters: it is the value a live session carries, so "has it
+/// ended?" is a test against it rather than a list of the ways it can end.
+mod termination {
+    pub const STILL_RUNNING: &str = "StillRunning";
+}
+
+/// Behaviour for [`Session`].
+///
+/// These read the two enum fields, which arrive as strings. The point of
+/// wrapping them is that both have a value meaning "nothing has happened yet"
+/// that is easy to mistake for its opposite: a session sitting at `Pending` is
+/// not playing, and one reporting `StillRunning` has not ended.
+pub trait SessionExt {
+    /// Whether the game is actually up.
+    ///
+    /// False for a session the client has opened but not got a game into yet -
+    /// which is the state a session is in for the first few seconds after a
+    /// launch is accepted.
+    fn is_playing(&self) -> bool;
+
+    /// Whether the session is over.
+    ///
+    /// This is the field to poll rather than the process table when the
+    /// question is "did it exit, and why" - a game that dies during startup
+    /// leaves a reason here, where the process table only shows an absence.
+    /// `exit_code` is meaningful once this is true and not before.
+    ///
+    /// A session the client has never heard of deserializes to an empty
+    /// `exit_reason`, which reads as not ended: an absent session is not the
+    /// same fact as a finished one, and the caller that asked for an id it
+    /// does not have should get `None` from the lookup instead.
+    fn has_ended(&self) -> bool;
+}
+
+impl SessionExt for Session {
+    fn is_playing(&self) -> bool {
+        self.phase == phases::GAMEPLAY
+    }
+
+    fn has_ended(&self) -> bool {
+        !self.exit_reason.is_empty() && self.exit_reason != termination::STILL_RUNNING
     }
 }
 
@@ -229,5 +282,72 @@ mod tests {
     fn no_league_product_yields_nothing() {
         let products: Vec<Product> = serde_json::from_str(r#"[{ "id": "valorant" }]"#).unwrap();
         assert!(!products.iter().any(|p| p.id == products::LEAGUE_OF_LEGENDS));
+    }
+
+    /// The two enum fields are the whole reason `SessionExt` exists, and both
+    /// have a value that reads like its opposite at a glance.
+    mod sessions {
+        use super::*;
+
+        fn session(phase: &str, reason: &str) -> Session {
+            serde_json::from_str(&format!(
+                r#"{{ "productId": "league_of_legends", "patchlineId": "live",
+                      "phase": "{phase}", "exitReason": "{reason}", "exitCode": 0 }}"#
+            ))
+            .unwrap()
+        }
+
+        #[test]
+        fn a_live_session_is_playing_and_has_not_ended() {
+            let live = session("Gameplay", "StillRunning");
+            assert!(live.is_playing());
+            assert!(!live.has_ended());
+        }
+
+        /// The gap between "the client accepted the launch" and "the game is
+        /// up". Treating this as playing is the mistake the trait prevents.
+        #[test]
+        fn a_pending_session_is_neither_playing_nor_ended() {
+            let pending = session("Pending", "StillRunning");
+            assert!(!pending.is_playing());
+            assert!(!pending.has_ended());
+        }
+
+        #[test]
+        fn every_terminal_reason_ends_the_session() {
+            for reason in ["Exit", "Interrupt", "Timeout", "Unknown"] {
+                let over = session("None", reason);
+                assert!(over.has_ended(), "{reason}");
+                assert!(!over.is_playing(), "{reason}");
+            }
+        }
+
+        /// An absent field must not read as a finished session - the caller
+        /// asking about an id the client does not have gets `None` from the
+        /// lookup, and this is the fallback if one ever slips past that.
+        #[test]
+        fn an_empty_reason_is_not_an_ending() {
+            let empty: Session = serde_json::from_str("{}").unwrap();
+            assert!(!empty.has_ended());
+            assert!(!empty.is_playing());
+        }
+
+        /// The whole type is a curated subset, so the field that must never
+        /// appear is worth a test rather than a comment.
+        #[test]
+        fn the_launch_configuration_never_lands_in_the_type() {
+            let recorded = r#"{
+                "productId": "league_of_legends",
+                "patchlineId": "live",
+                "phase": "Gameplay",
+                "launchConfiguration": {
+                    "arguments": ["--rso_auth.authorization-key=SECRET"]
+                }
+            }"#;
+            let session: Session = serde_json::from_str(recorded).unwrap();
+            assert_eq!(session.product_id, "league_of_legends");
+            assert!(session.is_playing());
+            assert!(!format!("{session:?}").contains("SECRET"));
+        }
     }
 }

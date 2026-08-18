@@ -269,10 +269,13 @@ pub use endpoint::{Endpoint, EndpointBuilder, EndpointMeta};
 pub use error::LauncherError;
 pub use installs::{RiotClientInstalls, default_installs_path, resolve_riot_client};
 #[cfg(feature = "launcher")]
-pub use launch::{Availability, LaunchOutcome, LaunchRoute, LaunchTarget, availability, launch};
+pub use launch::{
+    Availability, LaunchOutcome, LaunchRoute, LaunchTarget, availability, close, launch,
+};
 pub use lockfile::{Lockfile, default_lockfile_path, live_lockfile};
 pub use models::product_registry::{Patchline, Product};
-pub use models_ext::{PatchlineExt, ProductExt};
+pub use models::product_session::Session;
+pub use models_ext::{PatchlineExt, ProductExt, SessionExt};
 #[cfg(feature = "launcher")]
 pub use progress::{LaunchObserver, LaunchProgress, LaunchStage, NullObserver};
 pub use retry::{Backoff, RetryPolicy};
@@ -284,11 +287,12 @@ pub use types::RiotError;
 /// The extension traits, in one `use`.
 ///
 /// [`ClientExt`] hangs the namespace handlers off a [`Client`];
-/// [`ProductExt`] and [`PatchlineExt`] put behaviour on the generated model
-/// types. All three exist because an inherent `impl` must live in the crate
-/// defining the type, and those types live in the crates below this one.
+/// [`ProductExt`], [`PatchlineExt`] and [`SessionExt`] put behaviour on the
+/// generated model types. All of them exist because an inherent `impl` must
+/// live in the crate defining the type, and those types live in the crates
+/// below this one.
 pub mod prelude {
     pub use ritoclient_api::ClientExt;
 
-    pub use crate::models_ext::{PatchlineExt, ProductExt};
+    pub use crate::models_ext::{PatchlineExt, ProductExt, SessionExt};
 }

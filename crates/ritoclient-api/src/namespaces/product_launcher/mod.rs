@@ -1,8 +1,16 @@
 //! `/product-launcher/v1` - the route that actually starts a product.
 //!
-//! This is what the Riot Client's own Play button calls. The distinction from
-//! [`crate::namespaces::app_args`] cost a debugging session and is worth stating plainly:
-//! that one *queues arguments* and answers 204 without launching anything.
+//! This is what the Riot Client's own Play button calls, and the only route
+//! this workspace launches with. The distinction from
+//! [`crate::namespaces::app_args`] cost a debugging session and is worth
+//! stating plainly: that one *accepts* arguments and answers 204, and whether
+//! anything acts on them varies by build and by cohort.
+//!
+//! It is also the one route that is **not** subject to the client's
+//! direct-launch gate. A launch delivered any other way - lifecycle arguments,
+//! the `riotclient://` URI, an argv handoff - walks the startup middleware
+//! chain, where an install inside that rollout has its window shown and its
+//! launch dropped. This one answers with the session id it minted.
 //!
 //! A tray-idle client registers only the argv handoff; this plugin appears once
 //! it finishes booting, which is why the launch orchestration in the
@@ -33,6 +41,44 @@ pub struct ProductLauncherHandler<'a> {
 impl<'a> ProductLauncherHandler<'a> {
     pub(crate) fn new(client: &'a Client) -> Self {
         Self { client }
+    }
+
+    /// Adopt a running game the client does not know about.
+    ///
+    /// Turns "the game is already running" from a dead end into a session: the
+    /// client starts tracking the pid and mints a session id for it, so a caller
+    /// that arrived after the game did gets the same handle as one that launched
+    /// it.
+    ///
+    /// The pid must be the game's, not the Riot Client's.
+    pub fn adopt(
+        &self,
+        product_id: &str,
+        patchline_id: &str,
+        pid: i32,
+    ) -> Result<Response, RequestError> {
+        self.client
+            .endpoint(&endpoints::Adopt {
+                product_id,
+                patchline_id,
+                pid,
+            })
+            .send()
+    }
+
+    /// Close the product this client launched.
+    ///
+    /// The counterpart to [`launch`](Self::launch), and the same rule applies to
+    /// its answer: 204 is the client accepting the request, not the game being
+    /// gone. A game that was never launched through this client answers rather
+    /// than erroring - what that status means is the caller's to decide.
+    pub fn close(&self, product_id: &str, patchline_id: &str) -> Result<Response, RequestError> {
+        self.client
+            .endpoint(&endpoints::Close {
+                product_id,
+                patchline_id,
+            })
+            .send()
     }
 
     /// Whether the client considers this product/patchline launchable.

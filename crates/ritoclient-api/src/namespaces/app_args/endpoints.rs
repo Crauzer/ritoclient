@@ -8,7 +8,11 @@ use super::routes;
 /// `POST /riotclientapp/v1/new-args` - hand a duplicate instance's argv to the
 /// running client.
 ///
-/// Its 204 means "arguments queued", not "launched". See the module docs.
+/// Its 204 acknowledges the arguments and reports nothing about what the client
+/// does with them: on 136 a launch pair sent here launches, on 135 it did not.
+/// Wake with an empty array and launch through
+/// [`crate::namespaces::product_launcher`] - see the module docs for why the
+/// difference is a cohort rather than a mistake.
 ///
 /// The client's argument convention applies: the body is the bare array
 /// (`["--flag"]`), not an object wrapping it.

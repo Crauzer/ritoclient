@@ -13,6 +13,18 @@ crates/ritoclient-api/    typed namespaces and models. The generator's crate
 crates/ritoclient-core/   transport: client, retry, route, lockfile, processes
 ```
 
+## Status: experimental
+
+Under heavy, early development. **Breaking changes are expected** - a Riot Client
+update can invalidate a route, a status meaning or a whole flow, and the API gets
+restructured whenever a sounder shape turns up.
+
+So do not spend effort protecting consumers. No deprecation cycles, no
+compatibility shims, no keeping a worse design because something might depend on
+it. Rename the thing, change the signature, delete the variant. Getting the shape
+right now is worth more than any amount of stability, and this is the phase where
+that trade is free.
+
 ## Commands
 
 ```bash

@@ -1,0 +1,612 @@
+# Hand-authored input for `cargo xtask ritoclient-codegen`: chosen names,
+# confirmed spellings, and the doc prose measured against a live client. This
+# file is data - names, numbers, prose - never code; the templates that turn
+# it into Rust live in xtask. The snapshot never overwrites it.
+#
+# Namespace order here is `ClientExt` order (the order the accessors read
+# best in), not module order - modules and tables sort alphabetically on
+# their own.
+
+[[namespace]]
+id = "product-launcher"
+module = "product_launcher"
+accessor_doc = "`/product-launcher/v1` - starting a product."
+module_doc = '''
+`/product-launcher/v1` - the route that actually starts a product.
+
+This is what the Riot Client's own Play button calls, and the only route
+this workspace launches with. The distinction from
+[`crate::namespaces::app_args`] cost a debugging session and is worth
+stating plainly: that one *accepts* arguments and answers 204, and whether
+anything acts on them varies by build and by cohort.
+
+It is also the one route that is **not** subject to the client's
+direct-launch gate. A launch delivered any other way - lifecycle arguments,
+the `riotclient://` URI, an argv handoff - walks the startup middleware
+chain, where an install inside that rollout has its window shown and its
+launch dropped. This one answers with the session id it minted.
+
+A tray-idle client registers only the argv handoff; this plugin appears once
+it finishes booting, which is why the launch orchestration in the
+`ritoclient` crate needs a two-step.
+'''
+
+[namespace.timeout_const]
+name = "LAUNCH_TIMEOUT"
+secs = 20
+doc = '''
+A launch has to survive a client that is mid-startup, so it waits.
+
+Generous because the client runs its own gates before it spawns anything -
+a patch-state refresh, a player-affinity token, an up-to-date check - and
+each is a round trip to Riot's servers. Five seconds covered none of that on
+a slow link, and a timeout here does **not** cancel the work: the client went
+on to launch minutes later while we had already reported a failure.
+'''
+
+[[namespace.endpoint]]
+fn = "PostProductLauncherV1ProductsByProductIdPatchlinesByPatchlineId"
+name = "Patchline"
+method_name = "launch"
+body = "empty-object"
+timeout = "LAUNCH_TIMEOUT"
+route_doc = '''
+`/product-launcher/v1/products/{productId}/patchlines/{patchlineId}` - one
+product/patchline, three verbs. `POST` launches it, and is the route the
+client's own Play button calls; `DELETE` closes it; `PUT` adopts one that
+was already running.
+'''
+endpoint_doc = '''
+`POST /product-launcher/v1/products/{productId}/patchlines/{patchlineId}` -
+launch this product/patchline. The route the client's own Play button calls.
+
+On success the body is a bare JSON string holding the session id the client
+minted - the key into `/product-session/v1/external-sessions`.
+'''
+method_doc = '''
+Ask the client to launch the product.
+
+On success the body is a bare JSON string holding the session id the
+client minted - the key into `/product-session/v1/external-sessions`.
+What any status means here is the caller's to decide: a 404 from this
+namespace on a tray-idle client means "wait", and a refusal (an
+unaccepted ToS, a locked patchline) arrives as a status with a payload,
+not as an error.
+'''
+
+[[namespace.endpoint]]
+fn = "GetProductLauncherV1ProductsByProductIdPatchlinesByPatchlineIdEligibility"
+name = "Eligibility"
+method_name = "is_eligible"
+route_doc = '''
+`GET .../{patchlineId}/eligibility` - whether the account is entitled to
+launch this product/patchline. Entitlement, not installed-ness.
+'''
+endpoint_doc = '''
+`GET .../{patchlineId}/eligibility` - whether the account is entitled to
+launch this product/patchline. Entitlement, not installed-ness.
+'''
+method_doc = '''
+Whether the client considers this product/patchline launchable.
+
+Advisory: a `false` is worth surfacing, but an unreachable eligibility
+check must never block a launch attempt - the endpoint is absent on older
+builds.
+
+**This is an entitlement check, not an install check.** It answers `true`
+for `pbe` on a machine with no PBE install, so it cannot gate a patchline
+picker; whether the patchline is on disk is
+[`models::product_registry::Patchline`](crate::models::product_registry::Patchline)'s
+`install_full_path` being non-empty.
+'''
+
+[[namespace.endpoint]]
+fn = "DeleteProductLauncherV1ProductsByProductIdPatchlinesByPatchlineId"
+name = "Close"
+method_name = "close"
+body = "none"
+route_doc = '''
+`/product-launcher/v1/products/{productId}/patchlines/{patchlineId}` - one
+product/patchline, three verbs. `POST` launches it, and is the route the
+client's own Play button calls; `DELETE` closes it; `PUT` adopts one that
+was already running.
+'''
+endpoint_doc = '''
+`DELETE /product-launcher/v1/products/{productId}/patchlines/{patchlineId}` -
+close the product the client launched. Measured: 204, and League gone in
+under six seconds.
+
+**No body.** The route takes an optional `shouldTerminateProcess` that is
+not modelled: it is the one argument on this namespace we have not seen on
+the wire, and whether it belongs in a body or a query string is unconfirmed.
+Sending nothing leaves the client on whatever it defaults to, which is the
+behaviour that was measured.
+'''
+method_doc = '''
+Close the product this client launched.
+
+The counterpart to [`launch`](Self::launch), and the same rule applies to
+its answer: 204 is the client accepting the request, not the game being
+gone. A game that was never launched through this client answers rather
+than erroring - what that status means is the caller's to decide.
+'''
+
+[[namespace.endpoint]]
+fn = "PutProductLauncherV1ProductsByProductIdPatchlinesByPatchlineId"
+name = "Adopt"
+method_name = "adopt"
+route_doc = '''
+`/product-launcher/v1/products/{productId}/patchlines/{patchlineId}` - one
+product/patchline, three verbs. `POST` launches it, and is the route the
+client's own Play button calls; `DELETE` closes it; `PUT` adopts one that
+was already running.
+'''
+endpoint_doc = '''
+`PUT /product-launcher/v1/products/{productId}/patchlines/{patchlineId}` -
+take ownership of a game that is already running.
+
+The client's own words: *"Recover a session for a product that is already
+running, but Riot Client Services doesn't know about since it just started
+up."* Answers the same bare JSON string a launch does - a session id.
+
+The pid rides in the body as a bare JSON number, which is this client's
+argument convention for a single non-path argument. **Unconfirmed against a
+live client**: the other reading is a query parameter, and nothing in the
+workspace models those yet.
+'''
+method_doc = '''
+Adopt a running game the client does not know about.
+
+Turns "the game is already running" from a dead end into a session: the
+client starts tracking the pid and mints a session id for it, so a caller
+that arrived after the game did gets the same handle as one that launched
+it.
+
+The pid must be the game's, not the Riot Client's.
+'''
+
+[[namespace.endpoint]]
+fn = "GetProductLauncherV1IsLaunchRequestPending"
+route_doc = '''
+`GET /product-launcher/v1/is-launch-request-pending` - whether a launch
+is already in flight.
+'''
+endpoint_doc = '''
+`GET /product-launcher/v1/is-launch-request-pending` - whether a launch is
+already in flight.
+'''
+method_doc = '''
+Whether the client already has a launch in flight.
+
+The guard against launching twice. A launch POST can time out while the
+client is still working through its gates, and the timeout cancels
+nothing at the far end - so a retry that did not ask this first would
+queue a second launch for a request that was already accepted.
+'''
+
+[namespace.tests]
+name = "the_endpoints_bind_both_ids"
+
+[[namespace.tests.case]]
+var = "launch"
+endpoint = "Patchline"
+args = ["league_of_legends", "pbe"]
+expect = "/product-launcher/v1/products/league_of_legends/patchlines/pbe"
+
+[[namespace.tests.case]]
+var = "eligibility"
+endpoint = "Eligibility"
+args = ["league_of_legends", "pbe"]
+expect = "/product-launcher/v1/products/league_of_legends/patchlines/pbe/eligibility"
+
+[[namespace]]
+id = "product-session"
+module = "product_session"
+accessor_doc = "`/product-session/v1` - what the client thinks is running."
+module_doc = '''
+`/product-session/v1` - the client's own bookkeeping for what it started.
+
+A launch answers with a session id, and this is what that id is a key into.
+That makes it the honest answer to "did the game actually start?", where a
+process-name match is a guess that happens to be right: this is the record
+the Riot Client itself keeps, so it carries a phase, a version, and - when
+the session is over - an exit code and a reason for it.
+
+*External* sessions are the ones outside the Riot Client: games, not the UX
+product. That is the whole set a launcher cares about.
+
+Only the two read routes are wrapped. The write side of this namespace
+(`/sessions`, the heartbeats, the host session) belongs to a running game
+talking to its own client, not to us. And
+[`models::product_session::Session`](crate::models::product_session::Session)
+is a deliberate subset - see its docs for the field that is missing and why.
+'''
+models_doc = '''
+Data types for `/product-session`.
+
+The re-exports below are the public names; the definitions live in
+[`super::flat`].
+'''
+
+[[namespace.endpoint]]
+fn = "GetProductSessionV1ExternalSessions"
+route_doc = '''
+`GET /product-session/v1/external-sessions` - every session the client is
+tracking outside itself. Games, not the UX product.
+'''
+endpoint_doc = '''
+`GET /product-session/v1/external-sessions` - every session the client is
+tracking outside itself. Games, not the UX product.
+
+The body is an object keyed by session id, so it deserializes as a map
+rather than a list. Probed 200 on 135.0.7.4760.
+'''
+method_doc = '''
+Every session the client is tracking outside itself, keyed by session id.
+
+`None` means the client could not answer - closed, tray-idle, or a shape we
+no longer recognise. An empty map is a different fact: the client answered,
+and nothing is running.
+'''
+
+[[namespace.endpoint]]
+fn = "GetProductSessionV1ExternalSessionsBySessionId"
+name = "ExternalSession"
+route_doc = '''
+`GET /product-session/v1/external-sessions/{sessionId}` - one session by
+the id a launch returned.
+'''
+endpoint_doc = '''
+`GET /product-session/v1/external-sessions/{sessionId}` - one session by
+the id a launch returned.
+
+The id is the bare JSON string
+[`product_launcher`](crate::namespaces::product_launcher) answers a launch
+with.
+'''
+method_doc = '''
+One session by the id a launch returned.
+
+`None` covers both "no such session" and "could not ask", which is the
+right shape for a caller polling just after a launch: the session does not
+exist for the moment between the client accepting the request and opening
+the session, and neither case is an error.
+'''
+
+[namespace.tests]
+name = "the_session_route_binds_its_id"
+
+[[namespace.tests.case]]
+var = "session"
+endpoint = "ExternalSession"
+args = ["irnZWC1kOMt"]
+expect = "/product-session/v1/external-sessions/irnZWC1kOMt"
+
+[[namespace]]
+id = "rnet-product-registry"
+module = "product_registry"
+accessor_doc = "`/rnet-product-registry/v4` - what is installed, and where."
+module_doc = '''
+`/rnet-product-registry/v4` - what is installed, and where.
+
+One call answers what would otherwise be guesswork: where a product lives,
+which subdirectory holds its game data, which patchlines are installed, and
+which content release is on disk.
+
+It is worth knowing *why* these answers are authoritative rather than merely
+convenient. Foundation reads this same registry to build a game's command
+line - `executable = PathJoin(install_full_path, primary_executable)`,
+`workingDir = install_full_path`. So `install_full_path` is not a path Riot
+happens to know about; it is by construction the directory the client will
+launch the game from.
+
+# Caveats
+
+- **The namespace is absent from swagger and split across `v1`/`v4`.** It
+  will churn. Everything here deserializes tolerantly: unknown keys are
+  ignored, missing keys default, and any failure is `None` rather than an
+  error. Callers use this to enrich what they already know.
+- **It is plugin-gated.** A tray-idle client's entire API surface collapses
+  to the argv handoff (see [`crate::namespaces::app_args`]), so this 404s in that state
+  and does not exist at all when the client is closed.
+'''
+models_doc = '''
+Data types for `/rnet-product-registry`.
+
+The re-exports below are the public names; the definitions live in
+[`super::flat`]. Behaviour lives above this crate - the `ritoclient` crate's
+`ProductExt` / `PatchlineExt` extension traits.
+'''
+
+[[namespace.endpoint]]
+fn = "GetRnetProductRegistryV4Products"
+route_doc = '''
+`GET /rnet-product-registry/v4/products` - every product the client
+knows about, with its patchlines.
+'''
+endpoint_doc = '''
+`GET /rnet-product-registry/v4/products` - every product the client knows
+about, with its patchlines.
+'''
+method_doc = '''
+`GET /rnet-product-registry/v4/products`.
+
+`None` means the client could not answer - closed, tray-idle, or a shape
+we no longer recognise. Never an error: every caller has a fallback.
+'''
+
+[[namespace]]
+id = "riot-client-lifecycle"
+module = "lifecycle"
+accessor_doc = "`/riot-client-lifecycle/v1` - the client's own window."
+module_doc = '''
+`/riot-client-lifecycle/v1` - the Riot Client's own window state.
+
+Only the two window calls are wrapped, and the omissions are deliberate:
+
+- **`/quit` is not here.** A launched game holds a live remoting session
+  with the client for its whole run (that is what `--riotclient-auth-token`
+  and `--riotclient-app-port` are for), so quitting the client out from under
+  a running game is not a tidier version of hiding it.
+- **`/quit/switch-background-mode` is not here** either, though it looks like
+  the honest answer to "put the client in the tray": background mode really
+  does keep working, and even handles launches (`launchGameRequested` →
+  *"Launch event handled in Background mode, modified the parameter to include
+  direct launch args"*). Three things rule it out anyway. Its own description
+  says it shows the games-running exit dialog when a game is up, which is
+  exactly when we would be calling it. It sheds the plugin surface the game
+  talks to for its whole session. And it leaves the client in the state whose
+  only route is the argv handoff, so every later launch pays the wake-and-wait
+  path. Hiding the window costs none of that.
+- **There is no `/minimize`.** Probed and 404s; `hide` is the only thing the
+  client offers. The window goes to the tray, not the taskbar.
+
+Hiding is reversible from the tray icon, and by [`LifecycleHandler::show`].
+Keeping it hidden for the length of a play session is orchestration rather
+than an endpoint - that is `session::hide_for_play_session` in the
+`ritoclient` crate.
+'''
+
+[[namespace.endpoint]]
+fn = "PostRiotClientLifecycleV1Hide"
+route_doc = '''
+`POST /riot-client-lifecycle/v1/hide` - "Hide the UX." Sends the window
+to the tray.
+'''
+endpoint_doc = '''
+`POST /riot-client-lifecycle/v1/hide` - "Hide the UX."
+
+Answers 204 with no body.
+'''
+method_doc = '''
+`POST /riot-client-lifecycle/v1/hide` - "Hide the UX."
+
+Hides the window to the tray. The client keeps running, which is
+required: the game talks to it for the whole session.
+
+Idempotent: hiding an already-hidden window answers 204 like any other,
+which is what lets a session watcher re-assert it blind.
+'''
+
+[[namespace.endpoint]]
+fn = "PostRiotClientLifecycleV1Show"
+route_doc = '''
+`POST /riot-client-lifecycle/v1/show` - "Show the UX."
+'''
+endpoint_doc = '''
+`POST /riot-client-lifecycle/v1/show` - "Show the UX."
+
+Answers 204 with no body.
+'''
+method_doc = '''
+`POST /riot-client-lifecycle/v1/show` - "Show the UX."
+'''
+
+[[namespace]]
+id = "riotclientapp"
+module = "app_args"
+accessor_doc = "`/riotclientapp/v1` - the argv handoff."
+module_doc = '''
+`/riotclientapp/v1/new-args` - the duplicate-instance argv handoff.
+
+This is what a *second* `RiotClientServices.exe` calls to hand its argv to
+the first one before exiting. Its **204 means "arguments accepted"** and
+nothing else. What the client then does with them is a build- and
+cohort-dependent question, which is the whole reason this is never the call
+to launch with. Both halves of that were measured:
+
+- On Riot Client 135, posting `--launch-product` + `--launch-patchline` to a
+  fully booted client answered 204 and launched nothing at all.
+- On 136.0.3.4787 the same body launched, ~8.4 s later. `App_OnNewArgs`
+  publishes the raw array before it filters anything, the lifecycle
+  launch-args object subscribes to that resource and re-parses every switch
+  in it, and the launch that follows walks the client's entire startup
+  middleware chain - the one the direct-launch gate sits on. No session id
+  comes back.
+
+Neither measurement was wrong. The install that launched is cohorted into
+the lifecycle rewrite (`install-settings/cohorts` reports
+`RC_15.new_lifecycle: "globalEnable"`), so the answer varies by build *and*
+by user. Treat it as unanswerable and never send a launch pair here.
+
+That leaves exactly one use in this workspace: **waking a tray-idle client**,
+posting an empty array so there is nothing for any build to act on. In that
+state it is the only route that exists - the client's whole API surface
+collapses to this single function until it finishes booting. To launch, use
+[`crate::namespaces::product_launcher`], which is the Play button's own
+route and reaches none of that middleware.
+'''
+
+[[namespace.endpoint]]
+fn = "PostRiotclientappV1NewArgs"
+route_doc = '''
+`POST /riotclientapp/v1/new-args` - hand a duplicate instance's argv to
+the running client.
+
+Its 204 acknowledges the arguments and reports nothing about what the client
+does with them. On 136 a launch pair sent here launches. See the module docs.
+'''
+endpoint_doc = '''
+`POST /riotclientapp/v1/new-args` - hand a duplicate instance's argv to the
+running client.
+
+Its 204 acknowledges the arguments and reports nothing about what the client
+does with them: on 136 a launch pair sent here launches, on 135 it did not.
+Wake with an empty array and launch through
+[`crate::namespaces::product_launcher`] - see the module docs for why the
+difference is a cohort rather than a mistake.
+
+The client's argument convention applies: the body is the bare array
+(`["--flag"]`), not an object wrapping it.
+'''
+method_doc = '''
+`POST /riotclientapp/v1/new-args` - queue argv for the running client.
+
+The 204 is an acknowledgement, not a launch report, and on 136 a launch
+pair sent here does launch. Wake with `[]`. See the module docs.
+
+The client's argument convention applies: the body is the bare array
+(`["--flag"]`), not an object wrapping it.
+'''
+
+# Model shapes. A listed type is emitted with exactly these fields, in this
+# order - the curated subsets are deliberate (the full wire types run to ~45
+# fields of patcher internals) and tolerant deserialization makes a subset
+# safe. An unlisted type in the closure is emitted with every schema field.
+
+[[type]]
+name = "RnetProductRegistryProductV4"
+rename = "RnetProductRegistryProduct"
+doc = '''
+A product and every patchline it declares, installed or not.
+'''
+fields = ["id", "patchlines"]
+
+[[type]]
+name = "RnetProductRegistryPatchline"
+doc = '''
+One patchline of a product - `live`, `pbe`, and so on.
+
+A record exists for every patchline the account is *entitled* to, which is
+not the same as installed: the install test is `install_full_path` being
+non-empty (the `ritoclient` crate's `PatchlineExt::is_installed`).
+'''
+fields = [
+    "id",
+    "install_id",
+    "full_name",
+    "install_full_path",
+    "install_dir",
+    "primary_executable",
+    "release_id",
+    "configuration_status",
+    "vanguard_dependency",
+    "launch_disabled",
+    "secondary_patchlines",
+]
+
+[[type.field]]
+name = "install_id"
+doc = '''
+`league_of_legends.live` - joins onto `/patch/v1/installs` and the
+ProgramData metadata directory.
+'''
+
+[[type.field]]
+name = "full_name"
+doc = '''
+Already localized and already disambiguated ("League of Legends PBE"),
+so there is no need to synthesize a display name.
+'''
+
+[[type.field]]
+name = "install_full_path"
+doc = '''
+The install root. Empty when the patchline is not installed.
+'''
+
+[[type.field]]
+name = "release_id"
+doc = '''
+The content release on disk, e.g. `ED5FB7B738681EE8`. This is the key
+that changes when the game patches.
+'''
+
+[[type.field]]
+name = "configuration_status"
+doc = '''
+Informative only - reports `unsupported_region` for a patchline the
+account's region has no configuration for, which says nothing about
+whether it is installed.
+'''
+
+[[type]]
+name = "RnetProductRegistrySecondaryPatchlineResource"
+rename = "RnetProductRegistrySecondaryPatchline"
+doc = '''
+A nested install under a patchline - for League, the `Game` directory.
+'''
+fields = ["id", "relativePath"]
+
+[[type.field]]
+name = "relativePath"
+alias = "relative_path"
+doc = '''
+Relative to the parent's `install_full_path`.
+
+Spelled camelCase in the response while its siblings are snake_case. The
+`alias` is insurance for the day that stops being true, and is the kind
+of judgement a schema cannot supply - it comes from the generator's
+override file, not from `/help`.
+'''
+
+[[type]]
+name = "ProductSessionSession"
+doc = '''
+One session the client is tracking: what is running, and how it ended.
+
+**`launchConfiguration` is deliberately absent.** It carries the game's argv,
+and inside that argv is an `rso_auth.authorization-key` - a credential the
+client mints per session. The crate's rule is that a session payload is
+stripped of it before it goes anywhere, and leaving the field out of the type
+makes that structural rather than something to remember. Reading argv back is
+a separate decision, and it comes with a redaction policy attached.
+
+`phase` and `exit_reason` are enums on the wire (`Gameplay` / `Idle` / `None`
+/ `Pending`, and `Exit` / `Interrupt` / `StillRunning` / `Timeout` /
+`Unknown`). They travel as `String` under the generator's tolerance policy, so
+a variant Riot adds does not break deserialization.
+'''
+fields = [
+    "productId",
+    "patchlineId",
+    "patchlineFullName",
+    "version",
+    "phase",
+    "exitCode",
+    "exitReason",
+]
+
+[[type.field]]
+name = "phase"
+doc = '''
+`Gameplay` once the game is up. `Pending` while the client is still getting
+it there, `Idle` for a session that exists but is not playing, `None` when
+the client has nothing to say.
+'''
+
+[[type.field]]
+name = "exitCode"
+doc = '''
+Meaningful only once the session has ended - `exit_reason` is what says
+whether it has.
+'''
+
+[[type.field]]
+name = "exitReason"
+doc = '''
+`StillRunning` until the session ends, then `Exit` for a normal one and
+`Interrupt` / `Timeout` / `Unknown` for the rest. This is the field that
+answers "is it over?"; a game that died on startup gives a reason here
+instead of just vanishing from the process table.
+'''

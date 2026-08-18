@@ -12,9 +12,9 @@ one blocking decision: [`../design/endpoint-layout.md`](../design/endpoint-layou
 | ---------------------------- | ------------------------------------------------------------------ |
 | 1. Harness                   | **Done.** `client`, `retry`, `route`, `namespaces/`, `models/`      |
 | 1½. Shape + layering         | **Done, 2026-07-29.** Endpoint-as-a-type, built and shipped: three crates, `Endpoint`/`EndpointBuilder` in core, all four namespaces converted, `EndpointMeta` enumeration. See [`../design/endpoint-layout.md`](../design/endpoint-layout.md) |
-| 2. Snapshot                  | Not started. Needs an `xtask` member and a live client              |
-| 3. Codegen                   | Not started. Unblocked - the shape is decided *and built*; the four converted namespaces are the acceptance fixture |
-| 4. Re-base curated modules   | Not started                                                        |
+| 2. Snapshot                  | **Done, 2026-07-29.** `cargo xtask ritoclient-snapshot`; `schema/` holds 157 functions, 124 types, 38 swagger paths, and a probe ledger, taken against build 135.0.7.4760 |
+| 3. Codegen                   | **Generator built and passing its fixture, 2026-07-29.** `cargo xtask ritoclient-codegen` wipes and rewrites `ritoclient-api/src`, reproducing the four hand-written namespaces byte-for-byte from the snapshot plus `overrides.toml`; CI fails on drift. Remaining: extend `overrides.toml` to the other seven in-scope namespaces |
+| 4. Re-base curated modules   | **Done by construction.** The measured doc comments moved verbatim into `overrides.toml` and the fixture diff being empty is the proof nothing was dropped |
 | 5. Rewrite the `lib.rs` preamble | Not started                                                    |
 
 Step 1 shipped as this repo's first commit. What it built is documented by the code, the crate
@@ -81,7 +81,21 @@ moved, so runtime fallback would be guessing at a problem not yet observed.
 
 ## Step 2 - Snapshot
 
-`cargo xtask ritoclient-snapshot`. Needs a live client.
+`cargo xtask ritoclient-snapshot`. Needs a live client. Built and run
+2026-07-29; three things it learned on first contact:
+
+- **A tray-idle client has to be woken first** - its surface collapses to the
+  argv handoff plus the remoting builtins (8 functions), so the snapshot sends
+  `new-args` with an empty argv (opens the window, launches nothing) and polls
+  `/help` until the plugins register.
+- **Argument names come in two spellings** - `product-id` under
+  `product-launcher`, `productId` under `data-store` and friends - so the
+  `By{Param}` matcher normalizes both through one word split.
+- **The parameterless derived paths were GET-probed**: 39 serving, 10
+  registered, 28 absent. The absents are the known segment-split ambiguities
+  (`logs/path`, `process/quit`, `quit/switch-background-mode`) plus the
+  documented `is-xbgp-running` ghost - exactly what swagger spellings and
+  `overrides.toml` `resource` entries exist to correct.
 
 ```
 schema/                   repo root, not inside a published crate
@@ -143,6 +157,12 @@ small enough to move by hand.
 Endpoint names follow the client's own function names with the verb and namespace prefix stripped:
 `GetProductLauncherV1IsLaunchRequestPending` → `IsLaunchRequestPending`. They are module-scoped, so
 cross-namespace collisions are free, and the convention was settled at 7 endpoints rather than 150.
+
+**The fixture passed 2026-07-29** with one deliberate divergence: the doc line on the
+`the_metadata_rows_match_their_endpoint_impls` test said the tables were "hand-maintained until
+the generator writes them", which stopped being true at that exact moment; the regenerated wording
+is the new checked-in text. Byte fidelity comes from the generator running `cargo fmt` on its own
+output - the same formatter CI enforces - rather than from the emitters imitating rustfmt.
 
 ### Models: flat storage, grouped API
 
@@ -231,14 +251,11 @@ Nothing blocks step 3 any more.
 
 ## Deferred
 
-- **Detect a running game via `/product-session/v1/external-sessions`.** Step 1 made the game
-  executable a caller-supplied string, which got product knowledge out of the library but left
-  detection a process-name match. The session endpoint is better and product-agnostic by
-  construction: Riot's own bookkeeping rather than a toolhelp snapshot, carrying
-  `exitCode`/`exitReason` so a game that started and immediately died gives a reason instead of
-  silence, and reporting patchline and version for free. A launch already hands back the session id
-  that keys it. Keep the process scan as the fallback for the case survey section 1.3 flags - the Riot
-  Client exits while the game keeps running.
+- ~~**Detect a running game via `/product-session/v1/external-sessions`.**~~ Done as P3 of
+  [`launch-flow-136.md`](launch-flow-136.md). The namespace is generated, `LaunchOutcome.session_id`
+  is populated on every route that has one, and `SessionExt` reads the two enum fields. The process
+  scan stayed as the fallback for the case survey section 1.3 flags - the Riot Client exits while the
+  game keeps running.
 - **WebSocket / the 61 push events.** Would collapse polling into subscriptions, but adds a socket
   and a background thread to a crate whose constraint is "blocking, not async". Event names are in
   survey section 1.10.

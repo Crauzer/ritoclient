@@ -3,9 +3,10 @@
 ritoclient_core::routes! {
     namespace = "product-launcher";
 
-    /// `POST /product-launcher/v1/products/{productId}/patchlines/{patchlineId}`
-    /// - launch this product/patchline. The route the client's own Play button
-    /// calls.
+    /// `/product-launcher/v1/products/{productId}/patchlines/{patchlineId}` - one
+    /// product/patchline, three verbs. `POST` launches it, and is the route the
+    /// client's own Play button calls; `DELETE` closes it; `PUT` adopts one that
+    /// was already running.
     PATCHLINE = 1, "products/{productId}/patchlines/{patchlineId}";
 
     /// `GET .../{patchlineId}/eligibility` - whether the account is entitled to

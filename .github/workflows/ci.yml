@@ -70,6 +70,20 @@ jobs:
       # `docs.rs` default target set in the crate manifest.
       - run: cargo doc --workspace --no-deps --all-features
 
+  codegen:
+    name: Codegen Drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: rustfmt }
+      - uses: Swatinem/rust-cache@v2
+      # `ritoclient-api` is generator output. Regenerating from the checked-in
+      # snapshot must be a no-op; a diff means a generated file was hand-edited
+      # or the generator changed without its output being committed.
+      - run: cargo xtask ritoclient-codegen
+      - run: git diff --exit-code
+
   msrv:
     name: MSRV
     runs-on: ubuntu-latest

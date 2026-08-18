@@ -1,0 +1,1331 @@
+{
+  "probes": [
+    {
+      "function": "GetDataStoreV1InstallSettingsByPath",
+      "method": "GET",
+      "path": "/data-store/v1/install-settings/{path}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostDataStoreV1InstallSettingsByPath",
+      "method": "POST",
+      "path": "/data-store/v1/install-settings/{path}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetDataStoreV1InternalRegionChanged",
+      "method": "GET",
+      "path": "/data-store/v1/internal-region-changed",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostDataStoreV1InternalRegionChanged",
+      "method": "POST",
+      "path": "/data-store/v1/internal-region-changed",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetDataStoreV1Paths",
+      "method": "GET",
+      "path": "/data-store/v1/paths",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "GetDataStoreV1ProductSettingsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/data-store/v1/product-settings-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostDataStoreV1ProductSettingsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "POST",
+      "path": "/data-store/v1/product-settings-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetDataStoreV1ProductSettingsProductsByProductIdPatchlinesByPatchlineIdByPath",
+      "method": "GET",
+      "path": "/data-store/v1/product-settings-products/{productId}/patchlines/{patchlineId}/{path}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostDataStoreV1ProductSettingsProductsByProductIdPatchlinesByPatchlineIdByPath",
+      "method": "POST",
+      "path": "/data-store/v1/product-settings-products/{productId}/patchlines/{patchlineId}/{path}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostDataStoreV1ReloadProductSettingsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "POST",
+      "path": "/data-store/v1/reload-product-settings-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetDataStoreV1SystemSettingsByPath",
+      "method": "GET",
+      "path": "/data-store/v1/system-settings/{path}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "GetLaunchRestrictionV1Products",
+      "method": "GET",
+      "path": "/launch-restriction/v1/products",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "GetLaunchRestrictionV1Ready",
+      "method": "GET",
+      "path": "/launch-restriction/v1/ready",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "GetLaunchRestrictionV1Restrictions",
+      "method": "GET",
+      "path": "/launch-restriction/v1/restrictions",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "GetLaunchRestrictionV1RestrictionsByProductId",
+      "method": "GET",
+      "path": "/launch-restriction/v1/restrictions/{productId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetPatchProxyV1ActiveUpdates",
+      "method": "GET",
+      "path": "/patch-proxy/v1/active-updates",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostPatchProxyV1LaunchActive",
+      "method": "POST",
+      "path": "/patch-proxy/v1/launch-active",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetPatchProxyV1PatchJobs",
+      "method": "GET",
+      "path": "/patch-proxy/v1/patch-jobs",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "DeletePatchProxyV1PatchJobsAll",
+      "method": "DELETE",
+      "path": "/patch-proxy/v1/patch-jobs-all",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PutPatchProxyV1PatchJobsCancelActive",
+      "method": "PUT",
+      "path": "/patch-proxy/v1/patch-jobs-cancel-active",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "DeletePatchProxyV1PatchJobsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "DELETE",
+      "path": "/patch-proxy/v1/patch-jobs-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchProxyV1PatchJobsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/patch-proxy/v1/patch-jobs-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PutPatchProxyV1PatchJobsStart",
+      "method": "PUT",
+      "path": "/patch-proxy/v1/patch-jobs-start",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PutPatchProxyV1PatchJobsStop",
+      "method": "PUT",
+      "path": "/patch-proxy/v1/patch-jobs-stop",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "GetPatchProxyV1PatchStatesProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/patch-proxy/v1/patch-states-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchProxyV1PriorityPatchJobsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/patch-proxy/v1/priority-patch-jobs-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetPatchProxyV2InstallStates",
+      "method": "GET",
+      "path": "/patch-proxy/v2/install-states",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "DeletePatchProxyV2PatchJobsAll",
+      "method": "DELETE",
+      "path": "/patch-proxy/v2/patch-jobs-all",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "DeletePatchProxyV2PatchJobsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "DELETE",
+      "path": "/patch-proxy/v2/patch-jobs-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetPatchProxyV2PatchStatesOutOfDate",
+      "method": "GET",
+      "path": "/patch-proxy/v2/patch-states-out-of-date",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "GetPatchProxyV2PatchStatesProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/patch-proxy/v2/patch-states-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostPatchProxyV2PatchStatesRefresh",
+      "method": "POST",
+      "path": "/patch-proxy/v2/patch-states-refresh",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "PostPatchProxyV2PatchStatesRefreshProductsByProductIdPatchlinesByPatchlineId",
+      "method": "POST",
+      "path": "/patch-proxy/v2/patch-states-refresh-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchProxyV2PriorityPatchProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/patch-proxy/v2/priority-patch-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetPatchProxyV2ProductsByProductIdPatchlinesByPatchlineIdDependencies",
+      "method": "GET",
+      "path": "/patch-proxy/v2/products/{productId}/patchlines/{patchlineId}/dependencies",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchProxyV2QueuePatchProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/patch-proxy/v2/queue-patch-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetPatchV1Configuration",
+      "method": "GET",
+      "path": "/patch/v1/configuration",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "PutPatchV1Configuration",
+      "method": "PUT",
+      "path": "/patch/v1/configuration",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetPatchV1Installs",
+      "method": "GET",
+      "path": "/patch/v1/installs",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "DeletePatchV1InstallsByInstallId",
+      "method": "DELETE",
+      "path": "/patch/v1/installs/{installId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetPatchV1InstallsByInstallId",
+      "method": "GET",
+      "path": "/patch/v1/installs/{installId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchV1InstallsByInstallId",
+      "method": "PUT",
+      "path": "/patch/v1/installs/{installId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "DeletePatchV1InstallsByInstallIdRequestsPatch",
+      "method": "DELETE",
+      "path": "/patch/v1/installs/{installId}/requests-patch",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchV1InstallsByInstallIdRequestsPatch",
+      "method": "PUT",
+      "path": "/patch/v1/installs/{installId}/requests-patch",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "DeletePatchV1InstallsByInstallIdRequestsPreview",
+      "method": "DELETE",
+      "path": "/patch/v1/installs/{installId}/requests-preview",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchV1InstallsByInstallIdRequestsPreview",
+      "method": "PUT",
+      "path": "/patch/v1/installs/{installId}/requests-preview",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "DeletePatchV1InstallsByInstallIdRequestsRepair",
+      "method": "DELETE",
+      "path": "/patch/v1/installs/{installId}/requests-repair",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchV1InstallsByInstallIdRequestsRepair",
+      "method": "PUT",
+      "path": "/patch/v1/installs/{installId}/requests-repair",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "DeletePatchV1InstallsByInstallIdRequestsSeed",
+      "method": "DELETE",
+      "path": "/patch/v1/installs/{installId}/requests-seed",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutPatchV1InstallsByInstallIdRequestsSeed",
+      "method": "PUT",
+      "path": "/patch/v1/installs/{installId}/requests-seed",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetPatchV1InstallsByInstallIdStatus",
+      "method": "GET",
+      "path": "/patch/v1/installs/{installId}/status",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetPatchV1InstallsByInstallIdStatusPatch",
+      "method": "GET",
+      "path": "/patch/v1/installs/{installId}/status-patch",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetPatchV1InstallsByInstallIdStatusPreview",
+      "method": "GET",
+      "path": "/patch/v1/installs/{installId}/status-preview",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetPatchV1InstallsByInstallIdStatusRepair",
+      "method": "GET",
+      "path": "/patch/v1/installs/{installId}/status-repair",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetPatchV1InstallsByInstallIdStatusSeed",
+      "method": "GET",
+      "path": "/patch/v1/installs/{installId}/status-seed",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetProcessControlV1Process",
+      "method": "GET",
+      "path": "/process-control/v1/process",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetProcessControlV1ProcessClientDidRestart",
+      "method": "GET",
+      "path": "/process-control/v1/process-client-did-restart",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "DeleteProcessControlV1ProcessClientRestarting",
+      "method": "DELETE",
+      "path": "/process-control/v1/process-client-restarting",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetProcessControlV1ProcessClientRestarting",
+      "method": "GET",
+      "path": "/process-control/v1/process-client-restarting",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostProcessControlV1ProcessClientRestarting",
+      "method": "POST",
+      "path": "/process-control/v1/process-client-restarting",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostProcessControlV1ProcessQuit",
+      "method": "POST",
+      "path": "/process-control/v1/process-quit",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostProcessControlV1ProcessQuitSwitchBackgroundMode",
+      "method": "POST",
+      "path": "/process-control/v1/process-quit-switch-background-mode",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostProcessControlV1ProcessRestart",
+      "method": "POST",
+      "path": "/process-control/v1/process-restart",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "DeleteProductLauncherV1CompatModeProductsByProductIdPatchlinesByPatchlineId",
+      "method": "DELETE",
+      "path": "/product-launcher/v1/compat-mode-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "DeleteProductLauncherV1DefaultProduct",
+      "method": "DELETE",
+      "path": "/product-launcher/v1/default-product",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostProductLauncherV1DefaultProduct",
+      "method": "POST",
+      "path": "/product-launcher/v1/default-product",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostProductLauncherV1DefaultProductFlash",
+      "method": "POST",
+      "path": "/product-launcher/v1/default-product-flash",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostProductLauncherV1DefaultProductFocus",
+      "method": "POST",
+      "path": "/product-launcher/v1/default-product-focus",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostProductLauncherV1DefaultProductMinimize",
+      "method": "POST",
+      "path": "/product-launcher/v1/default-product-minimize",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetProductLauncherV1IsLaunchRequestPending",
+      "method": "GET",
+      "path": "/product-launcher/v1/is-launch-request-pending",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetProductLauncherV1LaunchingFromXbgp",
+      "method": "GET",
+      "path": "/product-launcher/v1/launching-from-xbgp",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostProductLauncherV1LaunchingFromXbgp",
+      "method": "POST",
+      "path": "/product-launcher/v1/launching-from-xbgp",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "DeleteProductLauncherV1PartnerProduct",
+      "method": "DELETE",
+      "path": "/product-launcher/v1/partner-product",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostProductLauncherV1PartnerProduct",
+      "method": "POST",
+      "path": "/product-launcher/v1/partner-product",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "function": "DeleteProductLauncherV1ProductsByProductIdPatchlinesByPatchlineId",
+      "method": "DELETE",
+      "path": "/product-launcher/v1/products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostProductLauncherV1ProductsByProductIdPatchlinesByPatchlineId",
+      "method": "POST",
+      "path": "/product-launcher/v1/products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutProductLauncherV1ProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/product-launcher/v1/products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetProductLauncherV1ProductsByProductIdPatchlinesByPatchlineIdEligibility",
+      "method": "GET",
+      "path": "/product-launcher/v1/products/{productId}/patchlines/{patchlineId}/eligibility",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "DeleteProductLauncherV1ProductsByProductIdPatchlinesByPatchlineIdRogueProcessByProcessNameByProcessId",
+      "method": "DELETE",
+      "path": "/product-launcher/v1/products/{productId}/patchlines/{patchlineId}/rogue-process/{processName}/{processId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetProductSessionV1DataPath",
+      "method": "GET",
+      "path": "/product-session/v1/data-path",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "GetProductSessionV1DataPathByPatchlineName",
+      "method": "GET",
+      "path": "/product-session/v1/data-path/{patchlineName}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetProductSessionV1ExternalSessions",
+      "method": "GET",
+      "path": "/product-session/v1/external-sessions",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "GetProductSessionV1ExternalSessionsBySessionId",
+      "method": "GET",
+      "path": "/product-session/v1/external-sessions/{sessionId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetProductSessionV1HeartbeatBySessionId",
+      "method": "GET",
+      "path": "/product-session/v1/heartbeat/{sessionId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetProductSessionV1HostSession",
+      "method": "GET",
+      "path": "/product-session/v1/host-session",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "PostProductSessionV1HostSession",
+      "method": "POST",
+      "path": "/product-session/v1/host-session",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetProductSessionV1HostSessionId",
+      "method": "GET",
+      "path": "/product-session/v1/host-session-id",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetProductSessionV1LogsPath",
+      "method": "GET",
+      "path": "/product-session/v1/logs-path",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "GetProductSessionV1LogsPathByPatchlineName",
+      "method": "GET",
+      "path": "/product-session/v1/logs-path/{patchlineName}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetProductSessionV1SessionHeartbeatsBySessionId",
+      "method": "GET",
+      "path": "/product-session/v1/session-heartbeats/{sessionId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetProductSessionV1Sessions",
+      "method": "GET",
+      "path": "/product-session/v1/sessions",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "DeleteProductSessionV1SessionsBySessionId",
+      "method": "DELETE",
+      "path": "/product-session/v1/sessions/{sessionId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetProductSessionV1SessionsBySessionId",
+      "method": "GET",
+      "path": "/product-session/v1/sessions/{sessionId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostProductSessionV1SessionsBySessionId",
+      "method": "POST",
+      "path": "/product-session/v1/sessions/{sessionId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostProductSessionV2Heartbeat",
+      "method": "POST",
+      "path": "/product-session/v2/heartbeat",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "function": "PostProductSessionV2HeartbeatInternalBySessionId",
+      "method": "POST",
+      "path": "/product-session/v2/heartbeat-internal/{sessionId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostProductSessionV2HeartbeatBySessionId",
+      "method": "POST",
+      "path": "/product-session/v2/heartbeat/{sessionId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostRiotClientLifecycleV1Hide",
+      "method": "POST",
+      "path": "/riot-client-lifecycle/v1/hide",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetRiotClientLifecycleV1LeagueRegionElection",
+      "method": "GET",
+      "path": "/riot-client-lifecycle/v1/league-region-election",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "PostRiotClientLifecycleV1LeagueRegionElection",
+      "method": "POST",
+      "path": "/riot-client-lifecycle/v1/league-region-election",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "DeleteRiotClientLifecycleV1ProductContext",
+      "method": "DELETE",
+      "path": "/riot-client-lifecycle/v1/product-context",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "GetRiotClientLifecycleV1ProductContext",
+      "method": "GET",
+      "path": "/riot-client-lifecycle/v1/product-context",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "PutRiotClientLifecycleV1ProductContext",
+      "method": "PUT",
+      "path": "/riot-client-lifecycle/v1/product-context",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "GetRiotClientLifecycleV1ProductContextPhase",
+      "method": "GET",
+      "path": "/riot-client-lifecycle/v1/product-context-phase",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostRiotClientLifecycleV1Quit",
+      "method": "POST",
+      "path": "/riot-client-lifecycle/v1/quit",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "PostRiotClientLifecycleV1QuitSwitchBackgroundMode",
+      "method": "POST",
+      "path": "/riot-client-lifecycle/v1/quit-switch-background-mode",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostRiotClientLifecycleV1Restart",
+      "method": "POST",
+      "path": "/riot-client-lifecycle/v1/restart",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostRiotClientLifecycleV1Show",
+      "method": "POST",
+      "path": "/riot-client-lifecycle/v1/show",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "DeleteRiotClientLifecycleV1UxCommand",
+      "method": "DELETE",
+      "path": "/riot-client-lifecycle/v1/ux-command",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "GetRiotClientLifecycleV1UxCommand",
+      "method": "GET",
+      "path": "/riot-client-lifecycle/v1/ux-command",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RPC_ERROR",
+      "function": "PutRiotClientLifecycleV1UxCommand",
+      "method": "PUT",
+      "path": "/riot-client-lifecycle/v1/ux-command",
+      "presence": "registered",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetRiotclientappV1CommandLineArgs",
+      "method": "GET",
+      "path": "/riotclientapp/v1/command-line-args",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "DeleteRiotclientappV1DirectLauncArgs",
+      "method": "DELETE",
+      "path": "/riotclientapp/v1/direct-launc-args",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetRiotclientappV1IsXbgpRunning",
+      "method": "GET",
+      "path": "/riotclientapp/v1/is-xbgp-running",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostRiotclientappV1NewArgs",
+      "method": "POST",
+      "path": "/riotclientapp/v1/new-args",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetRiotclientappV1SecondaryArgs",
+      "method": "GET",
+      "path": "/riotclientapp/v1/secondary-args",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostRnetProductRegistryV1AvailableDiskSpace",
+      "method": "POST",
+      "path": "/rnet-product-registry/v1/available-disk-space",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetRnetProductRegistryV1BackgroundPatchingState",
+      "method": "GET",
+      "path": "/rnet-product-registry/v1/background-patching-state",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostRnetProductRegistryV1DirectorySize",
+      "method": "POST",
+      "path": "/rnet-product-registry/v1/directory-size",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetRnetProductRegistryV1InstallStates",
+      "method": "GET",
+      "path": "/rnet-product-registry/v1/install-states",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "GetRnetProductRegistryV1InstallStatesProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/rnet-product-registry/v1/install-states-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV1MoveInstallRequestsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v1/move-install-requests-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetRnetProductRegistryV1MoveInstallStatesProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/rnet-product-registry/v1/move-install-states-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV1VerifyInstallProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v1/verify-install-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetRnetProductRegistryV4ActiveUpdates",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/active-updates",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "GetRnetProductRegistryV4AvailableProductLocalesProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/available-product-locales-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetRnetProductRegistryV4InstallSettingsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/install-settings-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4InstallSettingsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/install-settings-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetRnetProductRegistryV4InstallSettingsProductsByProductIdPatchlinesByPatchlineIdByPath",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/install-settings-products/{productId}/patchlines/{patchlineId}/{path}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4InstallSettingsProductsByProductIdPatchlinesByPatchlineIdByPath",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/install-settings-products/{productId}/patchlines/{patchlineId}/{path}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "DeleteRnetProductRegistryV4PatchRequestsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "DELETE",
+      "path": "/rnet-product-registry/v4/patch-requests-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4PatchRequestsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/patch-requests-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostRnetProductRegistryV4PatchRequestsProductsByProductIdPatchlinesByPatchlineIdCancelDependencies",
+      "method": "POST",
+      "path": "/rnet-product-registry/v4/patch-requests-products/{productId}/patchlines/{patchlineId}/cancel-dependencies",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetRnetProductRegistryV4PatchRequestsProductsByProductIdPatchlinesByPatchlineIdDependencies",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/patch-requests-products/{productId}/patchlines/{patchlineId}/dependencies",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostRnetProductRegistryV4PatchRequestsProductsByProductIdPatchlinesByPatchlineIdInstallDependencies",
+      "method": "POST",
+      "path": "/rnet-product-registry/v4/patch-requests-products/{productId}/patchlines/{patchlineId}/install-dependencies",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PostRnetProductRegistryV4PatchRequestsProductsByProductIdPatchlinesByPatchlineIdRetryDependencies",
+      "method": "POST",
+      "path": "/rnet-product-registry/v4/patch-requests-products/{productId}/patchlines/{patchlineId}/retry-dependencies",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "RESOURCE_NOT_FOUND",
+      "function": "GetRnetProductRegistryV4PatchStatesOutOfDate",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/patch-states-out-of-date",
+      "presence": "absent",
+      "probedWith": "GET",
+      "status": 404
+    },
+    {
+      "function": "GetRnetProductRegistryV4PatchStatesProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/patch-states-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetRnetProductRegistryV4PlayerProductsState",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/player-products-state",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "DeleteRnetProductRegistryV4PriorityPatchRequestsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "DELETE",
+      "path": "/rnet-product-registry/v4/priority-patch-requests-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "GetRnetProductRegistryV4PriorityPatchRequestsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/priority-patch-requests-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4PriorityPatchRequestsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/priority-patch-requests-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetRnetProductRegistryV4Products",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/products",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "GetRnetProductRegistryV4ProductsByProductIdPatchlinesByPatchlineId",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4ProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4ProductsByProductIdPatchlinesByPatchlineIdRootPath",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/products/{productId}/patchlines/{patchlineId}/root-path",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4ProductsByProductIdPatchlinesByPatchlineIdShortcut",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/products/{productId}/patchlines/{patchlineId}/shortcut",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4ProductsByProductIdPatchlinesByPatchlineIdUninstallKey",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/products/{productId}/patchlines/{patchlineId}/uninstall-key",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetRnetProductRegistryV4PublicProductsState",
+      "method": "GET",
+      "path": "/rnet-product-registry/v4/public-products-state",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "PutRnetProductRegistryV4RepairRequestsProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/repair-requests-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "DeleteRnetProductRegistryV4SessionPatchLockProductsByProductIdPatchlineByPatchlineId",
+      "method": "DELETE",
+      "path": "/rnet-product-registry/v4/session-patch-lock-products/{productId}/patchline/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "function": "PutRnetProductRegistryV4SessionPatchLockProductsByProductIdPatchlineByPatchlineId",
+      "method": "PUT",
+      "path": "/rnet-product-registry/v4/session-patch-lock-products/{productId}/patchline/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PostVanguardV1CheckVanguardService",
+      "method": "POST",
+      "path": "/vanguard/v1/check-vanguard-service",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "function": "PostVanguardV1CheckVanguardServiceProductsByProductId",
+      "method": "POST",
+      "path": "/vanguard/v1/check-vanguard-service-products/{productId}",
+      "probe": "skipped: parameterized path"
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": "WRONG_METHOD",
+      "function": "PutVanguardV1InstalledProducts",
+      "method": "PUT",
+      "path": "/vanguard/v1/installed-products",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 405
+    },
+    {
+      "clientBuild": "135.0.7.4760",
+      "date": "2026-07-29",
+      "errorCode": null,
+      "function": "GetVanguardV1Status",
+      "method": "GET",
+      "path": "/vanguard/v1/status",
+      "presence": "serving",
+      "probedWith": "GET",
+      "status": 200
+    },
+    {
+      "function": "PutVanguardV1UpdateProductsByProductIdPatchlinesByPatchlineId",
+      "method": "PUT",
+      "path": "/vanguard/v1/update-products/{productId}/patchlines/{patchlineId}",
+      "probe": "skipped: parameterized path"
+    }
+  ]
+}

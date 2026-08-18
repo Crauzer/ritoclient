@@ -109,6 +109,19 @@ pub fn is_running(exe_name: &str) -> bool {
         .any(|(name, _)| name.eq_ignore_ascii_case(exe_name))
 }
 
+/// The pid of a running process with this basename.
+///
+/// The first match, which is the only sensible answer for a game: a second
+/// instance of one is not a thing the process table can arbitrate, and every
+/// caller here wants "the game" rather than "all of them". Use
+/// [`list_matching`] when the plural genuinely matters.
+pub fn pid_of(exe_name: &str) -> Option<u32> {
+    snapshot()
+        .into_iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(exe_name))
+        .map(|(_, pid)| pid)
+}
+
 /// Whether this pid is still a Riot Client.
 ///
 /// Both halves matter: pids get recycled, so "a process with this pid exists"
@@ -135,6 +148,7 @@ mod tests {
     #[test]
     fn a_name_outside_the_riot_set_is_still_answerable() {
         assert!(!is_running("definitely-not-a-real-process-8f3a.exe"));
+        assert!(pid_of("definitely-not-a-real-process-8f3a.exe").is_none());
         assert!(list_matching(&["definitely-not-a-real-process-8f3a.exe"]).is_empty());
     }
 

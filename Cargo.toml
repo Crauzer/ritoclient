@@ -3,6 +3,7 @@ members = [
     "crates/ritoclient-core",
     "crates/ritoclient-api",
     "crates/ritoclient",
+    "xtask",
 ]
 resolver = "3"
 
