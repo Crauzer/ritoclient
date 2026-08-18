@@ -70,27 +70,145 @@ impl PatchlineExt for Patchline {
     }
 }
 
-/// The wire spellings of `ProductSessionProductPhase`, which the generated
-/// model carries as a `String` so a variant Riot adds cannot break
-/// deserialization. Private because reading them is what [`SessionExt`] is for.
-mod phases {
-    pub const GAMEPLAY: &str = "Gameplay";
+/// What a session is doing, as `ProductSessionProductPhase` on the wire.
+///
+/// The generated model carries this as a `String` - that is the generator's
+/// tolerance policy, and it is what stops a variant Riot adds from breaking
+/// deserialization. Typing it here rather than there gets exhaustiveness
+/// checking back without giving that up: an unrecognised value is
+/// [`Other`](Self::Other) rather than a parse failure.
+///
+/// The wire spelling is on [`Session::phase`] and is what a host should forward
+/// to its own frontend; this type is for deciding things in Rust.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum SessionPhase {
+    /// The game is up.
+    Gameplay,
+    /// A session that exists but is not playing.
+    Idle,
+    /// Spelled `None` by the client, and meaning it has nothing to say. Not the
+    /// absence of a phase - that is [`Other`](Self::Other) with an empty string.
+    Nothing,
+    /// The client is still getting a game into this session. The state every
+    /// session passes through for the first seconds after a launch is accepted.
+    Pending,
+    /// A spelling this build of the crate does not know, carried verbatim.
+    Other(String),
 }
 
-/// The wire spellings of `ProductSessionTerminationReason`. `STILL_RUNNING` is
-/// the one that matters: it is the value a live session carries, so "has it
-/// ended?" is a test against it rather than a list of the ways it can end.
-mod termination {
-    pub const STILL_RUNNING: &str = "StillRunning";
+impl SessionPhase {
+    /// The client's own spelling, which round-trips through [`From`].
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Gameplay => "Gameplay",
+            Self::Idle => "Idle",
+            Self::Nothing => "None",
+            Self::Pending => "Pending",
+            Self::Other(raw) => raw,
+        }
+    }
+}
+
+impl From<&str> for SessionPhase {
+    fn from(raw: &str) -> Self {
+        match raw {
+            "Gameplay" => Self::Gameplay,
+            "Idle" => Self::Idle,
+            "None" => Self::Nothing,
+            "Pending" => Self::Pending,
+            other => Self::Other(other.to_string()),
+        }
+    }
+}
+
+impl std::fmt::Display for SessionPhase {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// How a session ended, as `ProductSessionTerminationReason` on the wire.
+///
+/// Read [`is_terminal`](Self::is_terminal) rather than matching, unless the
+/// specific ending is what you are after - see its docs for why the test is a
+/// negative one.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum TerminationReason {
+    /// The session is still going. The value a live session carries.
+    StillRunning,
+    /// It ended normally.
+    Exit,
+    /// It was interrupted.
+    Interrupt,
+    /// It timed out.
+    Timeout,
+    /// The client ended it and will not say how. A real value Riot sends, not a
+    /// stand-in for one we failed to parse - that is [`Other`](Self::Other).
+    Unknown,
+    /// A spelling this build of the crate does not know, carried verbatim. An
+    /// empty string lands here too, which is what an absent field deserializes
+    /// to.
+    Other(String),
+}
+
+impl TerminationReason {
+    /// The client's own spelling, which round-trips through [`From`].
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::StillRunning => "StillRunning",
+            Self::Exit => "Exit",
+            Self::Interrupt => "Interrupt",
+            Self::Timeout => "Timeout",
+            Self::Unknown => "Unknown",
+            Self::Other(raw) => raw,
+        }
+    }
+
+    /// Whether this describes a session that is over.
+    ///
+    /// **A negative test on purpose.** `StillRunning` is the one value meaning
+    /// "not yet", and an empty one is no evidence either way; everything else is
+    /// an ending, *including a value Riot adds later*. Listing the endings
+    /// instead would quietly report a future `Crashed` as a live session.
+    pub fn is_terminal(&self) -> bool {
+        !matches!(self, Self::StillRunning) && !self.as_str().is_empty()
+    }
+}
+
+impl From<&str> for TerminationReason {
+    fn from(raw: &str) -> Self {
+        match raw {
+            "StillRunning" => Self::StillRunning,
+            "Exit" => Self::Exit,
+            "Interrupt" => Self::Interrupt,
+            "Timeout" => Self::Timeout,
+            "Unknown" => Self::Unknown,
+            other => Self::Other(other.to_string()),
+        }
+    }
+}
+
+impl std::fmt::Display for TerminationReason {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// Behaviour for [`Session`].
 ///
-/// These read the two enum fields, which arrive as strings. The point of
-/// wrapping them is that both have a value meaning "nothing has happened yet"
-/// that is easy to mistake for its opposite: a session sitting at `Pending` is
-/// not playing, and one reporting `StillRunning` has not ended.
+/// Both of the client's enum fields arrive as strings, and both have a value
+/// meaning "nothing has happened yet" that is easy to mistake for its opposite:
+/// a session sitting at `Pending` is not playing, and one reporting
+/// `StillRunning` has not ended. These read them.
 pub trait SessionExt {
+    /// What the session is doing.
+    fn phase(&self) -> SessionPhase;
+
+    /// How the session ended, or that it has not.
+    fn exit_reason(&self) -> TerminationReason;
+
     /// Whether the game is actually up.
     ///
     /// False for a session the client has opened but not got a game into yet -
@@ -113,12 +231,20 @@ pub trait SessionExt {
 }
 
 impl SessionExt for Session {
+    fn phase(&self) -> SessionPhase {
+        SessionPhase::from(self.phase.as_str())
+    }
+
+    fn exit_reason(&self) -> TerminationReason {
+        TerminationReason::from(self.exit_reason.as_str())
+    }
+
     fn is_playing(&self) -> bool {
-        self.phase == phases::GAMEPLAY
+        self.phase() == SessionPhase::Gameplay
     }
 
     fn has_ended(&self) -> bool {
-        !self.exit_reason.is_empty() && self.exit_reason != termination::STILL_RUNNING
+        self.exit_reason().is_terminal()
     }
 }
 
@@ -330,6 +456,59 @@ mod tests {
             let empty: Session = serde_json::from_str("{}").unwrap();
             assert!(!empty.has_ended());
             assert!(!empty.is_playing());
+        }
+
+        /// The point of typing these: a `match` gets checked, and the values
+        /// still round-trip to the client's own spelling.
+        #[test]
+        fn the_wire_spellings_round_trip() {
+            for raw in ["Gameplay", "Idle", "None", "Pending"] {
+                assert_eq!(SessionPhase::from(raw).as_str(), raw);
+            }
+            for raw in ["StillRunning", "Exit", "Interrupt", "Timeout", "Unknown"] {
+                assert_eq!(TerminationReason::from(raw).as_str(), raw);
+            }
+        }
+
+        /// `None` is a phase Riot sends. Renaming it to `Nothing` in Rust keeps
+        /// `SessionPhase::None` from reading as an absent value at a glance,
+        /// and must not change what goes back on the wire.
+        #[test]
+        fn the_none_phase_keeps_its_spelling() {
+            assert_eq!(SessionPhase::from("None"), SessionPhase::Nothing);
+            assert_eq!(SessionPhase::Nothing.to_string(), "None");
+        }
+
+        /// A value neither we nor this build of the client knows is carried,
+        /// not dropped - and for a termination reason it still counts as an
+        /// ending, because `StillRunning` is the only thing that does not.
+        #[test]
+        fn an_unrecognised_value_survives_and_still_reads_as_an_ending() {
+            let phase = SessionPhase::from("Rehearsal");
+            assert_eq!(phase, SessionPhase::Other("Rehearsal".to_string()));
+            assert_eq!(phase.to_string(), "Rehearsal");
+
+            let reason = TerminationReason::from("Crashed");
+            assert!(reason.is_terminal());
+            assert!(session("None", "Crashed").has_ended());
+        }
+
+        /// Riot's own `Unknown` is a real ending. The catch-all is `Other`, and
+        /// conflating the two would make a reported ending look unparsed.
+        #[test]
+        fn riots_unknown_is_a_value_not_a_parse_failure() {
+            assert_eq!(
+                TerminationReason::from("Unknown"),
+                TerminationReason::Unknown
+            );
+            assert!(TerminationReason::Unknown.is_terminal());
+        }
+
+        /// An absent field is not an ending, and not a phase either.
+        #[test]
+        fn an_empty_value_is_no_evidence() {
+            assert!(!TerminationReason::from("").is_terminal());
+            assert_eq!(SessionPhase::from(""), SessionPhase::Other(String::new()));
         }
 
         /// The whole type is a curated subset, so the field that must never

@@ -275,7 +275,7 @@ pub use launch::{
 pub use lockfile::{Lockfile, default_lockfile_path, live_lockfile};
 pub use models::product_registry::{Patchline, Product};
 pub use models::product_session::Session;
-pub use models_ext::{PatchlineExt, ProductExt, SessionExt};
+pub use models_ext::{PatchlineExt, ProductExt, SessionExt, SessionPhase, TerminationReason};
 #[cfg(feature = "launcher")]
 pub use progress::{LaunchObserver, LaunchProgress, LaunchStage, NullObserver};
 pub use retry::{Backoff, RetryPolicy};
