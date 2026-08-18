@@ -52,6 +52,13 @@ pub enum LauncherError {
         message: String,
     },
 
+    /// A launcher was configured with something it cannot use.
+    ///
+    /// A programming error rather than a runtime condition - it names what is
+    /// wrong rather than a remedy, because the remedy is a code change.
+    #[error("The launcher is misconfigured: {reason}")]
+    Misconfigured { reason: String },
+
     /// `RiotClientServices.exe` could not be spawned.
     #[error("Could not start the Riot Client: {reason}")]
     SpawnFailed { reason: String },

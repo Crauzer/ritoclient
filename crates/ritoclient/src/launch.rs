@@ -29,7 +29,8 @@
 //!
 //! Windows only. Everything else gets [`LauncherError::UnsupportedPlatform`].
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
@@ -153,77 +154,221 @@ pub struct Availability {
     pub game_running: bool,
 }
 
-/// Ask the Riot Client to launch a product.
+/// Drives one product/patchline through the Riot Client.
 ///
-/// `product_root` is the game's install root, used only to pick the Riot Client
-/// that owns *this* install; `None` falls back to the machine's default client.
+/// Everything here needs the same three things - which product, which
+/// executable that produces, and which Riot Client owns the install - so they
+/// are stated once and the operations become methods. Build one with
+/// [`Launcher::builder`].
 ///
-/// `game_process` is the executable to watch for - this crate names no products,
-/// so the caller supplies it. It answers "is it already running?" before the
-/// request, and catches a game that comes up during the wait for some reason of
-/// its own: the user pressing Play, or a launch that was already in flight.
-///
-/// Returns as soon as the request is delivered. Callers that need to know the
-/// game actually started must observe that separately - measured, the game
-/// process appears ~3.8 s after the client accepts, on a client with nothing
-/// to patch and a player already signed in.
-///
-/// Progress arrives on `observer` as [`LaunchStage`]s. They matter more here
-/// than in most operations: a client booting from the tray can hold this call
-/// for most of a minute, and silence for that long is indistinguishable from a
-/// crash.
+/// Cheap to clone and `Send + Sync`, so a host can keep one and use it from
+/// wherever its commands arrive.
 ///
 /// ```no_run
-/// use ritoclient::{LaunchTarget, NullObserver, launch};
+/// use ritoclient::{LaunchTarget, Launcher};
 /// use ritoclient::ids::{patchlines, products};
 ///
-/// let target = LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE);
-/// let outcome = launch(None, &target, "LeagueClient.exe", &NullObserver)?;
+/// let launcher = Launcher::builder(
+///     LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE),
+///     "LeagueClient.exe",
+/// )
+/// .on_progress(|progress| println!("{:?}", progress.stage))
+/// .build()?;
 ///
-/// // The handle into `/product-session/v1/external-sessions`, when the client
-/// // gave one. Absent is not a failure - see the field docs.
-/// println!("{:?} {:?}", outcome.route, outcome.session_id);
+/// if launcher.availability().can_launch {
+///     let outcome = launcher.launch()?;
+///     println!("{:?} {:?}", outcome.route, outcome.session_id);
+/// }
 /// # Ok::<(), ritoclient::LauncherError>(())
 /// ```
-pub fn launch(
-    product_root: Option<&Path>,
-    target: &LaunchTarget,
-    game_process: &str,
-    observer: &dyn LaunchObserver,
-) -> Result<LaunchOutcome, LauncherError> {
-    let result = launch_inner(product_root, target, game_process, observer);
+#[derive(Clone)]
+pub struct Launcher {
+    target: LaunchTarget,
+    game_process: String,
+    product_root: Option<PathBuf>,
+    observer: Arc<dyn LaunchObserver + Send + Sync>,
+}
 
-    // One terminal event per launch, on every exit path, so a listener always
-    // gets told the request is over.
-    let stage = match &result {
-        // Neither of these launched anything, so neither may report that it
-        // did - a caller watching for `Launched` is watching for a game that
-        // started because it asked.
-        Ok(outcome)
-            if matches!(
-                outcome.route,
-                LaunchRoute::AlreadyRunning | LaunchRoute::Adopted
-            ) =>
-        {
-            LaunchStage::AlreadyRunning
+/// Debug without the observer, which is a closure often enough that printing
+/// its type would say nothing.
+impl std::fmt::Debug for Launcher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Launcher")
+            .field("target", &self.target)
+            .field("game_process", &self.game_process)
+            .field("product_root", &self.product_root)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Launcher {
+    /// Start configuring a launcher for one product/patchline.
+    ///
+    /// Both arguments are required and neither has a sane default: this crate
+    /// names no products, so the executable to watch for is the caller's to
+    /// supply. Everything optional is on the builder.
+    pub fn builder(target: LaunchTarget, game_process: impl Into<String>) -> LauncherBuilder {
+        LauncherBuilder {
+            target,
+            game_process: game_process.into(),
+            product_root: None,
+            observer: None,
         }
-        Ok(_) => LaunchStage::Launched,
-        Err(_) => LaunchStage::Error,
-    };
-    observer.on_progress(LaunchProgress::at(stage));
+    }
 
-    result
+    /// What this launcher launches.
+    pub fn target(&self) -> &LaunchTarget {
+        &self.target
+    }
+
+    /// The executable it watches for.
+    pub fn game_process(&self) -> &str {
+        &self.game_process
+    }
+
+    /// Ask the Riot Client to launch the product.
+    ///
+    /// Returns as soon as the request is delivered. Callers that need to know
+    /// the game actually started must observe that separately - measured, the
+    /// game process appears ~3.8 s after the client accepts, on a client with
+    /// nothing to patch and a player already signed in.
+    ///
+    /// Progress arrives on the observer as [`LaunchStage`]s. It matters more
+    /// here than in most operations: a client booting from the tray can hold
+    /// this call for most of a minute, and silence for that long is
+    /// indistinguishable from a crash.
+    pub fn launch(&self) -> Result<LaunchOutcome, LauncherError> {
+        let observer = self.observer.as_ref();
+        let result = launch_inner(
+            self.product_root.as_deref(),
+            &self.target,
+            &self.game_process,
+            observer,
+        );
+
+        // One terminal event per launch, on every exit path, so a listener
+        // always gets told the request is over.
+        let stage = match &result {
+            // Neither of these launched anything, so neither may report that it
+            // did - a caller watching for `Launched` is watching for a game that
+            // started because it asked.
+            Ok(outcome)
+                if matches!(
+                    outcome.route,
+                    LaunchRoute::AlreadyRunning | LaunchRoute::Adopted
+                ) =>
+            {
+                LaunchStage::AlreadyRunning
+            }
+            Ok(_) => LaunchStage::Launched,
+            Err(_) => LaunchStage::Error,
+        };
+        observer.on_progress(LaunchProgress::at(stage));
+
+        result
+    }
+
+    /// Whether a launch is possible right now. Never fails.
+    pub fn availability(&self) -> Availability {
+        availability(self.product_root.as_deref(), &self.game_process)
+    }
+
+    /// Keep the Riot Client's window hidden for one play session.
+    ///
+    /// Returns immediately; the returned [`SessionWatch`] calls it off. See
+    /// [`session`](crate::session) for what it does and why it hides twice.
+    ///
+    /// [`SessionWatch`]: crate::session::SessionWatch
+    pub fn hide_during_session(&self) -> crate::session::SessionWatch {
+        crate::session::hide_for_play_session(self.game_process.clone())
+    }
+
+    /// Ask the Riot Client to close the product it launched.
+    ///
+    /// The counterpart to [`launch`](Self::launch), and it answers on the same
+    /// terms: success means the client took the request, not that the game is
+    /// gone. Measured, the game is gone in under six seconds.
+    ///
+    /// Needs a live client, because a closed one has nothing to close. Refusals
+    /// arrive as [`LauncherError::Refused`] with Riot's own code attached - a
+    /// product this client never launched is refused rather than quietly
+    /// accepted.
+    pub fn close(&self) -> Result<(), LauncherError> {
+        close(&self.target)
+    }
+}
+
+/// Configures a [`Launcher`]. From [`Launcher::builder`].
+pub struct LauncherBuilder {
+    target: LaunchTarget,
+    game_process: String,
+    product_root: Option<PathBuf>,
+    observer: Option<Arc<dyn LaunchObserver + Send + Sync>>,
+}
+
+impl std::fmt::Debug for LauncherBuilder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LauncherBuilder")
+            .field("target", &self.target)
+            .field("game_process", &self.game_process)
+            .field("product_root", &self.product_root)
+            .finish_non_exhaustive()
+    }
+}
+
+impl LauncherBuilder {
+    /// The game's install root, used only to pick the Riot Client that owns
+    /// *this* install. Left unset, the machine's default client is used.
+    pub fn product_root(mut self, root: impl AsRef<Path>) -> Self {
+        self.product_root = Some(root.as_ref().to_path_buf());
+        self
+    }
+
+    /// Follow a launch's progress with a closure.
+    ///
+    /// Called from the launching thread, so it must be cheap and must not
+    /// block. Use [`observer`](Self::observer) when the receiver is a type
+    /// rather than a closure.
+    pub fn on_progress(self, f: impl Fn(LaunchProgress) + Send + Sync + 'static) -> Self {
+        self.observer(f)
+    }
+
+    /// Follow a launch's progress with a [`LaunchObserver`].
+    pub fn observer(mut self, observer: impl LaunchObserver + Send + Sync + 'static) -> Self {
+        self.observer = Some(Arc::new(observer));
+        self
+    }
+
+    /// Finish, validating what cannot be checked earlier.
+    ///
+    /// Fails only on a game process name that is empty or blank. That is a
+    /// programming error rather than a runtime condition, but it is worth
+    /// catching: an empty name makes every "is it running?" answer `false`, so
+    /// a launcher built with one silently never notices the game.
+    pub fn build(self) -> Result<Launcher, LauncherError> {
+        if self.game_process.trim().is_empty() {
+            return Err(LauncherError::Misconfigured {
+                reason: "the game process name is empty, so the game could never be detected"
+                    .to_string(),
+            });
+        }
+
+        Ok(Launcher {
+            target: self.target,
+            game_process: self.game_process,
+            product_root: self.product_root,
+            observer: self
+                .observer
+                .unwrap_or_else(|| Arc::new(crate::progress::NullObserver)),
+        })
+    }
 }
 
 /// Ask the Riot Client to close a product it launched.
 ///
-/// The counterpart to [`launch`], and it answers on the same terms: success
-/// means the client took the request, not that the game is gone. Measured, the
-/// game is gone in under six seconds.
-///
-/// Needs a live client, because a closed one has nothing to close. Refusals
-/// arrive as [`LauncherError::Refused`] with Riot's own code attached - a
-/// product this client never launched is refused rather than quietly accepted.
+/// [`Launcher::close`] is the usual way in. This exists for the caller that has
+/// a target and no launcher - closing needs neither the install root nor the
+/// process name, because the client is the one that knows what it started.
 ///
 /// ```no_run
 /// use ritoclient::{LaunchTarget, close};
@@ -901,6 +1046,8 @@ fn wait_for_launcher(
 
 /// Whether a launch is possible right now. Never fails.
 ///
+/// [`Launcher::availability`] is the usual way in; this is what it calls.
+///
 /// ```
 /// use ritoclient::availability;
 ///
@@ -962,18 +1109,27 @@ mod tests {
             }
         }
 
+        impl LaunchObserver for Arc<RecordingObserver> {
+            fn on_progress(&self, progress: LaunchProgress) {
+                (**self).on_progress(progress);
+            }
+        }
+
         /// Doubles as the coverage for the wrapper's terminal-event guarantee: a
         /// launch must announce that it is over on *every* exit path, or a
         /// listener leaves its spinner up forever.
         #[test]
         fn launching_is_windows_only() {
-            let observer = RecordingObserver::default();
-            let target = LaunchTarget {
-                product_id: "league_of_legends".to_string(),
-                patchline_id: "live".to_string(),
-            };
+            let observer = Arc::new(RecordingObserver::default());
+            let launcher = Launcher::builder(
+                LaunchTarget::new("league_of_legends", "live"),
+                "leagueclient.exe",
+            )
+            .observer(Arc::clone(&observer))
+            .build()
+            .unwrap();
 
-            let error = launch(None, &target, "leagueclient.exe", &observer).unwrap_err();
+            let error = launcher.launch().unwrap_err();
 
             assert!(matches!(error, LauncherError::UnsupportedPlatform));
             assert_eq!(observer.stages(), vec![LaunchStage::Error]);
@@ -1109,6 +1265,39 @@ mod tests {
                 Readiness::NotYet { reason } => assert!(reason.contains("503"))
             );
         }
+    }
+
+    /// The one thing `build` validates. An empty name is not a launch failure -
+    /// it is a launcher that would never see the game it started.
+    #[test]
+    fn a_blank_game_process_is_refused_at_build_time() {
+        let error = Launcher::builder(LaunchTarget::new("league_of_legends", "live"), "   ")
+            .build()
+            .unwrap_err();
+        assert!(matches!(error, LauncherError::Misconfigured { .. }));
+    }
+
+    /// A closure is the common observer, and the blanket impl is what lets one
+    /// be passed without a type in between.
+    #[test]
+    fn a_closure_can_observe_progress() {
+        use std::sync::Mutex;
+
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let recorder = Arc::clone(&seen);
+
+        let launcher = Launcher::builder(
+            LaunchTarget::new("league_of_legends", "live"),
+            "leagueclient.exe",
+        )
+        .on_progress(move |progress| recorder.lock().unwrap().push(progress.stage))
+        .product_root("C:/Riot Games/League of Legends")
+        .build()
+        .unwrap();
+
+        assert_eq!(launcher.target().to_string(), "league_of_legends/live");
+        assert_eq!(launcher.game_process(), "leagueclient.exe");
+        assert!(seen.lock().unwrap().is_empty());
     }
 
     #[test]

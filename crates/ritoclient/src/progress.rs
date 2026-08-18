@@ -82,6 +82,17 @@ pub trait LaunchObserver {
     fn on_progress(&self, progress: LaunchProgress);
 }
 
+/// Any `Fn(LaunchProgress)` is an observer.
+///
+/// The reason a caller can pass a closure instead of declaring a type for one
+/// method. Implementing the trait directly is still there for a receiver that
+/// has state worth naming.
+impl<F: Fn(LaunchProgress)> LaunchObserver for F {
+    fn on_progress(&self, progress: LaunchProgress) {
+        self(progress)
+    }
+}
+
 /// An observer that drops everything, for callers that don't care.
 pub struct NullObserver;
 

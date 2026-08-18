@@ -164,30 +164,33 @@
 //!
 //! # Launching
 //!
-//! [`launch()`] is orchestration rather than a namespace: it decides between
+//! [`Launcher`] is orchestration rather than a namespace: it decides between
 //! handing off to a running client, waking a tray-idle one, and cold-starting,
 //! and reports [`LaunchStage`]s while it does. Which product to launch and which
-//! executable that produces are the caller's to supply.
+//! executable that produces are the caller's to supply, so they are what it is
+//! built from.
 //!
 //! ```no_run
 //! use ritoclient::ids::{patchlines, products};
-//! use ritoclient::{LaunchTarget, NullObserver};
+//! use ritoclient::{LaunchTarget, Launcher};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! let target = LaunchTarget {
-//!     product_id: products::LEAGUE_OF_LEGENDS.to_string(),
-//!     patchline_id: patchlines::LIVE.to_string(),
-//! };
+//! let launcher = Launcher::builder(
+//!     LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE),
+//!     "leagueclient.exe",
+//! )
+//! .on_progress(|progress| println!("{:?}", progress.stage))
+//! .build()?;
 //!
-//! let outcome = ritoclient::launch(None, &target, "leagueclient.exe", &NullObserver)?;
+//! let outcome = launcher.launch()?;
 //! println!("{:?} (session {:?})", outcome.route, outcome.session_id);
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! It returns as soon as the request is *delivered*, which is not the same as
-//! the game being up: the client may still patch, or wait for a login. Implement
-//! [`LaunchObserver`] to follow progress, and see `examples/launch.rs`.
+//! the game being up: the client may still patch, or wait for a login. The
+//! session id is the handle for that; see `examples/launch.rs`.
 //!
 //! # Examples
 //!
@@ -270,7 +273,8 @@ pub use error::LauncherError;
 pub use installs::{RiotClientInstalls, default_installs_path, resolve_riot_client};
 #[cfg(feature = "launcher")]
 pub use launch::{
-    Availability, LaunchOutcome, LaunchRoute, LaunchTarget, availability, close, launch,
+    Availability, LaunchOutcome, LaunchRoute, LaunchTarget, Launcher, LauncherBuilder,
+    availability, close,
 };
 pub use lockfile::{Lockfile, default_lockfile_path, live_lockfile};
 pub use models::product_registry::{Patchline, Product};

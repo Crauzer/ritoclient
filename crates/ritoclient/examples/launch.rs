@@ -22,45 +22,35 @@
 use std::path::PathBuf;
 
 use ritoclient::ids::{patchlines, products};
-use ritoclient::{LaunchObserver, LaunchProgress, LaunchStage, LaunchTarget};
+use ritoclient::{LaunchStage, LaunchTarget, Launcher};
 
 /// The executable to watch for. This crate names no products, so the caller
 /// says which process means "the game is up".
 const GAME_PROCESS: &str = "leagueclient.exe";
 
-/// Prints each stage as it arrives.
-///
-/// A launch is one blocking call that can spend most of a minute inside a single
-/// step, so without these there is no way to tell waiting from hanging.
-struct Printer;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let product_root = std::env::var("LTK_LEAGUE_PATH").ok().map(PathBuf::from);
+    let target = LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE);
 
-impl LaunchObserver for Printer {
-    fn on_progress(&self, progress: LaunchProgress) {
-        match progress.stage {
+    // A launch is one blocking call that can spend most of a minute inside a
+    // single step, so without progress there is no telling waiting from hanging.
+    let mut builder =
+        Launcher::builder(target, GAME_PROCESS).on_progress(|progress| match progress.stage {
             LaunchStage::WaitingForClient => println!(
                 "  waiting for the client... {}s / {}s",
                 progress.waited_secs, progress.timeout_secs
             ),
             stage => println!("  {stage:?}"),
-        }
+        });
+    if let Some(root) = &product_root {
+        builder = builder.product_root(root);
     }
-}
+    let launcher = builder.build()?;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let product_root = std::env::var("LTK_LEAGUE_PATH").ok().map(PathBuf::from);
+    println!("{:#?}", launcher.availability());
+    println!("\nlaunching {}", launcher.target());
 
-    let target = LaunchTarget {
-        product_id: products::LEAGUE_OF_LEGENDS.to_string(),
-        patchline_id: patchlines::LIVE.to_string(),
-    };
-
-    println!(
-        "{:#?}",
-        ritoclient::availability(product_root.as_deref(), GAME_PROCESS)
-    );
-    println!("\nlaunching {}/{}", target.product_id, target.patchline_id);
-
-    let outcome = ritoclient::launch(product_root.as_deref(), &target, GAME_PROCESS, &Printer)?;
+    let outcome = launcher.launch()?;
 
     // "Delivered" is not "running": the client may still patch, or wait for a
     // login. The session id is the key into `/product-session/v1/external-sessions`,
