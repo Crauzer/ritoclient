@@ -172,20 +172,39 @@
 //!
 //! ```no_run
 //! use ritoclient::ids::{patchlines, products};
-//! use ritoclient::{LaunchTarget, Launcher};
+//! use ritoclient::prelude::*;
+//! use ritoclient::{Client, LaunchTarget, Launcher};
 //!
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! // One launcher per product. Build it once and keep it: cheap to clone, safe
+//! // to share across threads.
 //! let launcher = Launcher::builder(
 //!     LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE),
-//!     "leagueclient.exe",
+//!     "LeagueClient.exe",
 //! )
+//! .product_root("C:/Riot Games/League of Legends")
 //! .on_progress(|progress| println!("{:?}", progress.stage))
 //! .build()?;
 //!
-//! let outcome = launcher.launch()?;
-//! println!("{:?} (session {:?})", outcome.route, outcome.session_id);
-//! # Ok(())
-//! # }
+//! // Nothing to ask when no Riot Client was found. Grey the button out.
+//! if launcher.availability().can_launch {
+//!     // Blocks until the client accepts the request. Up to two minutes from cold.
+//!     let outcome = launcher.launch()?;
+//!
+//!     // Keeps the Riot Client window in the tray for this session.
+//!     let watch = launcher.hide_during_session();
+//!
+//!     // The session id answers "did the game actually start?".
+//!     if let (Some(id), Ok(client)) = (&outcome.session_id, Client::new()) {
+//!         if let Some(session) = client.product_session().external_session(id) {
+//!             println!("{} ({})", session.phase(), session.version);
+//!         }
+//!     }
+//!
+//!     // Later, when the player asks to stop:
+//!     watch.stop();
+//!     launcher.close()?;
+//! }
+//! # Ok::<(), ritoclient::LauncherError>(())
 //! ```
 //!
 //! It returns as soon as the request is *delivered*, which is not the same as
