@@ -5,6 +5,8 @@
 //! among them. It polls, spawns a thread, and decides *when* to drive a route -
 //! none of which is an endpoint wrapper's business.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use ritoclient_api::namespaces::lifecycle::endpoints::Hide;
@@ -25,6 +27,40 @@ const POLL_INTERVAL: Duration = Duration::from_secs(2);
 /// Once the game is up there is nothing to do but wait it out, and a session
 /// runs for hours - so the walk of the process table slows down.
 const SESSION_POLL_INTERVAL: Duration = Duration::from_secs(5);
+
+/// A running window-hiding watcher, and the way to call it off.
+///
+/// Dropping this does **not** stop the watcher. That is deliberate: the common
+/// case is fire-and-forget for the length of a play session, and a guard that
+/// cancelled on drop would make `hide_for_play_session(exe);` a no-op - the
+/// quietest possible way to break a caller. Stopping is therefore something you
+/// ask for.
+///
+/// Cheap to clone and safe to share; every clone stops the same watcher.
+#[derive(Debug, Clone)]
+pub struct SessionWatch {
+    stopped: Arc<AtomicBool>,
+}
+
+impl SessionWatch {
+    /// Call the watcher off.
+    ///
+    /// Takes effect at the next poll rather than immediately - the thread is
+    /// usually asleep - so the window may be re-hidden once more after this
+    /// returns. Idempotent.
+    pub fn stop(&self) {
+        self.stopped.store(true, Ordering::Relaxed);
+    }
+
+    /// Whether the watcher is still running.
+    ///
+    /// Answers `false` once [`stop`](Self::stop) has been called *or* the
+    /// watcher finished on its own - a caller cannot tell those apart, and
+    /// nothing needs to.
+    pub fn is_watching(&self) -> bool {
+        !self.stopped.load(Ordering::Relaxed)
+    }
+}
 
 /// How long the hide is re-asserted after the game exits.
 ///
@@ -55,8 +91,24 @@ const REHIDE_WINDOW: Duration = Duration::from_secs(10);
 ///
 /// Entirely best-effort. Every failure is a log line, because the cost of
 /// getting this wrong is a window that stayed visible.
-pub fn hide_for_play_session(game_process: impl Into<String>) {
+///
+/// The returned [`SessionWatch`] calls the whole thing off. Ignoring it leaves
+/// the watcher running, which is the behaviour every caller wanted before there
+/// was one to ignore.
+///
+/// ```no_run
+/// use ritoclient::hide_for_play_session;
+///
+/// let watch = hide_for_play_session("LeagueClient.exe");
+/// // ... the player asked us to stop managing their window:
+/// watch.stop();
+/// ```
+pub fn hide_for_play_session(game_process: impl Into<String>) -> SessionWatch {
     let game_process = game_process.into();
+    let stopped = Arc::new(AtomicBool::new(false));
+    let watch = SessionWatch {
+        stopped: Arc::clone(&stopped),
+    };
 
     std::thread::spawn(move || {
         // One connection for the whole session. Safe to hold across the game
@@ -67,7 +119,7 @@ pub fn hide_for_play_session(game_process: impl Into<String>) {
             return;
         };
 
-        if !wait_for_game(&game_process) {
+        if !wait_for_game(&game_process, &stopped) {
             tracing::debug!(
                 "Game did not start within the hide window; leaving the client visible"
             );
@@ -77,24 +129,36 @@ pub fn hide_for_play_session(game_process: impl Into<String>) {
         hide_now(&client);
 
         // No deadline: a session is as long as the player makes it.
-        while crate::processes::is_running(&game_process) {
+        while crate::processes::is_running(&game_process) && !stopped.load(Ordering::Relaxed) {
             std::thread::sleep(SESSION_POLL_INTERVAL);
         }
 
         tracing::debug!("Game exited; keeping the Riot Client hidden through its own un-hide");
         let until = Instant::now() + REHIDE_WINDOW;
-        while Instant::now() < until {
+        while Instant::now() < until && !stopped.load(Ordering::Relaxed) {
             std::thread::sleep(POLL_INTERVAL);
             hide_now(&client);
         }
+
+        // Whether it ran out or was called off, it is over - so the watch
+        // reports what a caller would otherwise have to guess.
+        stopped.store(true, Ordering::Relaxed);
     });
+
+    watch
 }
 
 /// Wait for the game process, reporting whether it turned up in time.
-fn wait_for_game(game_process: &str) -> bool {
+///
+/// Answers `false` when called off as well as when it times out: both mean
+/// there is nothing left to do, and the caller does not act on the difference.
+fn wait_for_game(game_process: &str, stopped: &AtomicBool) -> bool {
     let deadline = Instant::now() + GAME_WAIT_TIMEOUT;
     while Instant::now() < deadline {
         std::thread::sleep(POLL_INTERVAL);
+        if stopped.load(Ordering::Relaxed) {
+            return false;
+        }
         if crate::processes::is_running(game_process) {
             return true;
         }
@@ -112,5 +176,40 @@ fn wait_for_game(game_process: &str) -> bool {
 fn hide_now(client: &Client) {
     if let Err(e) = client.endpoint(&Hide).ignore() {
         tracing::debug!("Could not hide the Riot Client: {e}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The watch is the only handle on a thread that otherwise runs for hours.
+    /// Stopping is idempotent because a caller cannot know whether the watcher
+    /// already finished on its own.
+    #[test]
+    fn stopping_is_idempotent_and_visible() {
+        let watch = SessionWatch {
+            stopped: Arc::new(AtomicBool::new(false)),
+        };
+        assert!(watch.is_watching());
+
+        watch.stop();
+        assert!(!watch.is_watching());
+
+        watch.stop();
+        assert!(!watch.is_watching());
+    }
+
+    /// Every clone stops the same watcher - a host that hands one to its UI and
+    /// keeps another must not end up with two half-controls.
+    #[test]
+    fn clones_share_one_watcher() {
+        let watch = SessionWatch {
+            stopped: Arc::new(AtomicBool::new(false)),
+        };
+        let handed_out = watch.clone();
+
+        handed_out.stop();
+        assert!(!watch.is_watching());
     }
 }

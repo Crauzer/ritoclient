@@ -251,8 +251,13 @@ pub const FLAT_HEADER: &str = r#"//! Every API data type, in one flat namespace,
 //! Everything deserializes tolerantly - `#[serde(default)]`, unknown keys
 //! ignored - because these namespaces churn between patches and a caller always
 //! has a fallback. That is a generator policy, not a per-type decision.
+//!
+//! `Serialize` is derived too, so a host can forward one of these to its own
+//! frontend without restating it. Round-tripping is not the point and is not
+//! promised: a curated type is a subset, so serializing one emits the fields we
+//! kept and nothing else.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 "#;
 
 /// The fixed part of the tests module in `namespaces/mod.rs`, up to the two

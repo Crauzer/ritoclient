@@ -1388,7 +1388,9 @@ fn emit_flat(resolved: &Resolved) -> String {
     for ty in &resolved.flat_types {
         out.push('\n');
         out.push_str(&doc_block("", "///", &ty.doc));
-        out.push_str("#[derive(Debug, Clone, Default, Deserialize)]\n#[serde(default)]\n");
+        out.push_str(
+            "#[derive(Debug, Clone, Default, Deserialize, Serialize)]\n#[serde(default)]\n",
+        );
         let _ = writeln!(out, "pub struct {} {{", ty.rust_name);
         for field in &ty.fields {
             if let Some(doc) = &field.doc {

@@ -12,8 +12,9 @@ use thiserror::Error;
 /// Read-only queries do not use this type - they answer `Option`, because the
 /// caller always has a fallback and "the client didn't tell us" is not a failure
 /// worth surfacing.
-#[derive(Debug, Clone, Serialize, Deserialize, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[non_exhaustive]
 #[cfg_attr(feature = "ts", ts(export))]
 #[serde(
     tag = "kind",
@@ -59,6 +60,22 @@ pub enum LauncherError {
     UnsupportedPlatform,
 }
 
+impl From<ritoclient_core::client::RequestError> for LauncherError {
+    /// A request that never completed is a client we could not reach.
+    ///
+    /// The only mapping there is: [`RequestError`] means no round trip
+    /// happened, so there is no status to interpret and nothing route-specific
+    /// to say. Statuses are a different question entirely, and the layer that
+    /// knows what one *means* handles them - see the `launch` module.
+    ///
+    /// [`RequestError`]: ritoclient_core::client::RequestError
+    fn from(error: ritoclient_core::client::RequestError) -> Self {
+        Self::RiotClientUnreachable {
+            reason: error.to_string(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -77,6 +94,19 @@ mod tests {
         assert_eq!(
             json["installsPath"],
             "C:/ProgramData/Riot Games/RiotClientInstalls.json"
+        );
+    }
+
+    /// The conversion exists so callers can use `?` instead of repeating one
+    /// `map_err` at every call site. It must keep the reason readable.
+    #[test]
+    fn a_request_that_never_happened_converts_to_unreachable() {
+        let error: LauncherError = ritoclient_core::client::RequestError::NoClient.into();
+        assert_eq!(
+            error,
+            LauncherError::RiotClientUnreachable {
+                reason: "no Riot Client is running".to_string(),
+            }
         );
     }
 }

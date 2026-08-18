@@ -8,10 +8,11 @@ use serde::Serialize;
 /// waking a tray-idle client and waiting for it to load its launcher plugin.
 /// Without these the caller cannot tell that wait apart from a hang, which is
 /// the whole reason they exist.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub enum LaunchStage {
     /// Locating `RiotClientServices.exe` and checking what is already running.
     Resolving,
@@ -35,7 +36,7 @@ pub enum LaunchStage {
 }
 
 /// Progress of a League launch request.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "camelCase")]

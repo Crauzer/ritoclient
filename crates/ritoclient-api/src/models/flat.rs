@@ -24,8 +24,13 @@
 //! Everything deserializes tolerantly - `#[serde(default)]`, unknown keys
 //! ignored - because these namespaces churn between patches and a caller always
 //! has a fallback. That is a generator policy, not a per-type decision.
+//!
+//! `Serialize` is derived too, so a host can forward one of these to its own
+//! frontend without restating it. Round-tripping is not the point and is not
+//! promised: a curated type is a subset, so serializing one emits the fields we
+//! kept and nothing else.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 /// One session the client is tracking: what is running, and how it ended.
 ///
@@ -40,7 +45,7 @@ use serde::Deserialize;
 /// / `Pending`, and `Exit` / `Interrupt` / `StillRunning` / `Timeout` /
 /// `Unknown`). They travel as `String` under the generator's tolerance policy, so
 /// a variant Riot adds does not break deserialization.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ProductSessionSession {
     #[serde(rename = "productId")]
@@ -67,7 +72,7 @@ pub struct ProductSessionSession {
 }
 
 /// A product and every patchline it declares, installed or not.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct RnetProductRegistryProduct {
     pub id: String,
@@ -79,7 +84,7 @@ pub struct RnetProductRegistryProduct {
 /// A record exists for every patchline the account is *entitled* to, which is
 /// not the same as installed: the install test is `install_full_path` being
 /// non-empty (the `ritoclient` crate's `PatchlineExt::is_installed`).
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct RnetProductRegistryPatchline {
     pub id: String,
@@ -106,7 +111,7 @@ pub struct RnetProductRegistryPatchline {
 }
 
 /// A nested install under a patchline - for League, the `Game` directory.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct RnetProductRegistrySecondaryPatchline {
     pub id: String,

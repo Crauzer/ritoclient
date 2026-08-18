@@ -41,7 +41,7 @@ use crate::progress::{LaunchObserver, LaunchProgress, LaunchStage};
 /// These are data, not an enum to invent: `league_of_legends` / `live` is what
 /// the client's own product registry uses, `pbe` exists as a patchline, and
 /// anything else should come from configuration rather than a guess.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "camelCase")]
@@ -50,11 +50,38 @@ pub struct LaunchTarget {
     pub patchline_id: String,
 }
 
+impl LaunchTarget {
+    /// Name a product and one of its patchlines.
+    ///
+    /// ```
+    /// use ritoclient::LaunchTarget;
+    /// use ritoclient::ids::{patchlines, products};
+    ///
+    /// let target = LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE);
+    /// assert_eq!(target.to_string(), "league_of_legends/live");
+    /// ```
+    pub fn new(product_id: impl Into<String>, patchline_id: impl Into<String>) -> Self {
+        Self {
+            product_id: product_id.into(),
+            patchline_id: patchline_id.into(),
+        }
+    }
+}
+
+/// `league_of_legends/live` - the spelling the client's own logs use, which is
+/// what makes it the right one for ours.
+impl std::fmt::Display for LaunchTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.product_id, self.patchline_id)
+    }
+}
+
 /// How the launch request was delivered.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+#[non_exhaustive]
 pub enum LaunchRoute {
     /// Handed to an already-running Riot Client over its remoting API.
     ExistingClient,
@@ -85,7 +112,7 @@ pub enum LaunchRoute {
 /// "Successful" means the Riot Client took the request, not that the game is up:
 /// the client may still be updating itself, or waiting for the user to log in.
 /// Two of the four routes did not ask for a launch at all - see [`LaunchRoute`].
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "camelCase")]
@@ -112,7 +139,7 @@ pub struct LaunchOutcome {
 /// Never fails: an unanswerable question resolves to "can't launch" rather than
 /// an error. Hosts that put this on the wire should map it to their own type -
 /// this one names no product, and a UI's wording usually does.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Availability {
     /// Whether the platform supports launching and a Riot Client was resolved.
@@ -145,6 +172,19 @@ pub struct Availability {
 /// than in most operations: a client booting from the tray can hold this call
 /// for most of a minute, and silence for that long is indistinguishable from a
 /// crash.
+///
+/// ```no_run
+/// use ritoclient::{LaunchTarget, NullObserver, launch};
+/// use ritoclient::ids::{patchlines, products};
+///
+/// let target = LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE);
+/// let outcome = launch(None, &target, "LeagueClient.exe", &NullObserver)?;
+///
+/// // The handle into `/product-session/v1/external-sessions`, when the client
+/// // gave one. Absent is not a failure - see the field docs.
+/// println!("{:?} {:?}", outcome.route, outcome.session_id);
+/// # Ok::<(), ritoclient::LauncherError>(())
+/// ```
 pub fn launch(
     product_root: Option<&Path>,
     target: &LaunchTarget,
@@ -184,6 +224,14 @@ pub fn launch(
 /// Needs a live client, because a closed one has nothing to close. Refusals
 /// arrive as [`LauncherError::Refused`] with Riot's own code attached - a
 /// product this client never launched is refused rather than quietly accepted.
+///
+/// ```no_run
+/// use ritoclient::{LaunchTarget, close};
+/// use ritoclient::ids::{patchlines, products};
+///
+/// close(&LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE))?;
+/// # Ok::<(), ritoclient::LauncherError>(())
+/// ```
 pub fn close(target: &LaunchTarget) -> Result<(), LauncherError> {
     #[cfg(not(target_os = "windows"))]
     {
@@ -194,27 +242,18 @@ pub fn close(target: &LaunchTarget) -> Result<(), LauncherError> {
     #[cfg(target_os = "windows")]
     {
         use ritoclient_api::ClientExt;
-        use ritoclient_core::client::{Client, RequestError};
+        use ritoclient_core::client::Client;
 
-        let unreachable = |e: RequestError| LauncherError::RiotClientUnreachable {
-            reason: e.to_string(),
-        };
-
-        let client = Client::new().map_err(unreachable)?;
+        let client = Client::new()?;
         let response = client
             .product_launcher()
-            .close(&target.product_id, &target.patchline_id)
-            .map_err(unreachable)?;
+            .close(&target.product_id, &target.patchline_id)?;
 
         if !response.status().is_success() {
             return Err(refusal(&response, "close the game"));
         }
 
-        tracing::info!(
-            "Riot Client closed {}/{}",
-            target.product_id,
-            target.patchline_id
-        );
+        tracing::info!("Riot Client closed {target}");
         Ok(())
     }
 }
@@ -265,7 +304,7 @@ fn cold_start(
     game_process: &str,
     observer: &dyn LaunchObserver,
 ) -> Result<LaunchOutcome, LauncherError> {
-    use ritoclient_core::client::{Client, RequestError};
+    use ritoclient_core::client::Client;
 
     observer.on_progress(LaunchProgress::at(LaunchStage::ColdStart));
     let pid = crate::spawn::cold_start(riot_client_exe)?;
@@ -273,9 +312,7 @@ fn cold_start(
     // Built before the client exists, which costs nothing: the lockfile is read
     // per attempt, so until one appears every call answers `NoClient` and the
     // wait treats that as "not yet" like any other.
-    let client = Client::new().map_err(|e: RequestError| LauncherError::RiotClientUnreachable {
-        reason: e.to_string(),
-    })?;
+    let client = Client::new()?;
 
     wait_for_launcher(
         &client,
@@ -543,12 +580,7 @@ fn attempt_launch(
     // us session tracking, not the launch, so a shape we don't recognise is
     // dropped rather than raised.
     let session_id = response.json::<String>().ok();
-    tracing::info!(
-        "Riot Client launched {}/{} (session {:?})",
-        target.product_id,
-        target.patchline_id,
-        session_id
-    );
+    tracing::info!("Riot Client launched {target} (session {session_id:?})");
     Ok(LaunchAttempt::Launched { session_id })
 }
 
@@ -670,25 +702,19 @@ fn hand_off(
     observer: &dyn LaunchObserver,
 ) -> Result<LaunchOutcome, LauncherError> {
     use ritoclient_api::ClientExt;
-    use ritoclient_core::client::{Client, RequestError};
+    use ritoclient_core::client::Client;
 
     // One connection for the whole handoff, including the wait. It resolves the
     // lockfile per attempt, so it survives the port change that waking the
     // client causes - which is the entire reason a port is not cached here.
-    let client = Client::new().map_err(|e: RequestError| LauncherError::RiotClientUnreachable {
-        reason: e.to_string(),
-    })?;
+    let client = Client::new()?;
 
     if client
         .product_launcher()
         .is_eligible(&target.product_id, &target.patchline_id)
         == Some(false)
     {
-        tracing::warn!(
-            "Riot Client reports {}/{} is not eligible to launch",
-            target.product_id,
-            target.patchline_id
-        );
+        tracing::warn!("Riot Client reports {target} is not eligible to launch");
     }
 
     observer.on_progress(LaunchProgress::at(LaunchStage::HandingOff));
@@ -874,6 +900,15 @@ fn wait_for_launcher(
 }
 
 /// Whether a launch is possible right now. Never fails.
+///
+/// ```
+/// use ritoclient::availability;
+///
+/// let state = availability(None, "LeagueClient.exe");
+/// if !state.can_launch {
+///     // No Riot Client was resolved, so there is nothing to ask.
+/// }
+/// ```
 pub fn availability(product_root: Option<&Path>, game_process: &str) -> Availability {
     #[cfg(not(target_os = "windows"))]
     {

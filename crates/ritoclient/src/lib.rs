@@ -281,7 +281,7 @@ pub use progress::{LaunchObserver, LaunchProgress, LaunchStage, NullObserver};
 pub use retry::{Backoff, RetryPolicy};
 pub use route::Route;
 #[cfg(feature = "launcher")]
-pub use session::hide_for_play_session;
+pub use session::{SessionWatch, hide_for_play_session};
 pub use types::RiotError;
 
 /// The extension traits, in one `use`.
