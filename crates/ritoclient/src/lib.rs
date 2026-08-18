@@ -280,7 +280,7 @@ pub mod session;
 mod models_ext;
 #[cfg(all(feature = "launcher", target_os = "windows"))]
 mod spawn;
-#[cfg(feature = "launcher")]
+#[cfg(all(feature = "launcher", target_os = "windows"))]
 mod window;
 
 pub use ritoclient_api::{ClientExt, models, namespaces};
