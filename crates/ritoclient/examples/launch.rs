@@ -1,4 +1,5 @@
-//! Start a game through the Riot Client, printing progress as it goes.
+//! Start a game through the Riot Client, printing progress as it goes, then
+//! follow the session to its end, printing each event.
 //!
 //! ```text
 //! cargo run -p ritoclient --example launch
@@ -56,6 +57,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // login. The session id is the key into `/product-session/v1/external-sessions`,
     // which is what a real "did it start?" check should follow.
     println!("\n{outcome:#?}");
+
+    let Some(session_id) = outcome.session_id else {
+        println!("\nno session id came back, so there is nothing to follow");
+        return Ok(());
+    };
+
+    // The watcher runs on its own thread and stops itself at the terminal
+    // event, so all this loop does is keep the process alive to see it.
+    println!("\nfollowing session {session_id} to its end (Ctrl+C to give up)");
+    let watch = launcher.watch_session(&session_id, |event| println!("  {event:?}"));
+    while watch.is_watching() {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
 
     Ok(())
 }

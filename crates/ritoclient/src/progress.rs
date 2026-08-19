@@ -9,8 +9,6 @@ use serde::Serialize;
 /// Without these the caller cannot tell that wait apart from a hang, which is
 /// the whole reason they exist.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
 pub enum LaunchStage {
@@ -31,14 +29,16 @@ pub enum LaunchStage {
     /// one. `LaunchRoute` carries which; neither is a launch, so neither
     /// reports [`LaunchStage::Launched`].
     AlreadyRunning,
+    /// The caller stopped the launch while it was waiting. Terminal, and not
+    /// [`LaunchStage::Error`]: nothing failed, so a listener must not put an
+    /// error dialog behind its own Cancel button.
+    Stopped,
     /// The request failed; the error itself is reported separately.
     Error,
 }
 
 /// Progress of a League launch request.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchProgress {
     pub stage: LaunchStage,
@@ -116,6 +116,7 @@ mod tests {
             (LaunchStage::WaitingForClient, "\"waitingForClient\""),
             (LaunchStage::Launched, "\"launched\""),
             (LaunchStage::AlreadyRunning, "\"alreadyRunning\""),
+            (LaunchStage::Stopped, "\"stopped\""),
             (LaunchStage::Error, "\"error\""),
         ] {
             assert_eq!(serde_json::to_string(&stage).unwrap(), expected);

@@ -4,9 +4,6 @@ description = "Client for the Riot Client's local API - discovery, launching, an
 keywords = ["riot", "league-of-legends", "valorant", "launcher"]
 categories = ["api-bindings", "games"]
 readme = "README.md"
-# Written by the `ts` feature's export tests, and not part of the crate. A
-# `.gitignore` does not reliably gate `cargo package`; this does.
-exclude = ["bindings/"]
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -22,10 +19,6 @@ default = ["launcher"]
 # The launch/session orchestration and its Win32 half. Off, this crate is the
 # typed API surface plus the on-disk records, with no windows-sys of its own.
 launcher = ["dep:windows-sys"]
-# Derive `ts_rs::TS` on the types that cross an IPC boundary. Only useful to a
-# consumer that exports TypeScript bindings; see the README for the caveat about
-# where the generated files land.
-ts = ["dep:ts-rs"]
 
 [dependencies]
 ritoclient-core = { workspace = true }
@@ -34,7 +27,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-ts-rs = { workspace = true, optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { workspace = true, optional = true, features = [

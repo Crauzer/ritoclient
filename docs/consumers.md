@@ -19,27 +19,20 @@ secret; `.github/workflows/release.yml` does the rest on a `v*` tag.
 settled and built, but a published API is one that has to be broken rather than changed, and the
 generator has not yet exercised it at full width.
 
-## The `ts` feature is broken for external consumers
+## The `ts` feature is gone
 
-The `ts` feature derives `ts_rs::TS` on the six types that cross an IPC boundary - `LauncherError`,
-`LaunchOutcome`, `LaunchProgress`, `LaunchRoute`, `LaunchStage`, `LaunchTarget`.
+Dropped on 2026-08-19, before the first publish. It derived `ts_rs::TS` on the six types that cross
+ltk-manager's IPC boundary - `LauncherError`, `LaunchOutcome`, `LaunchProgress`, `LaunchRoute`,
+`LaunchStage`, `LaunchTarget`.
 
-`ts_rs` exports by generating a `#[test]` that writes the `.ts` file. **Cargo never compiles or runs
-a dependency's tests.** So enabling this feature from a downstream crate produces no bindings at all.
+The feature never worked for an external consumer. `ts_rs` exports by generating a `#[test]` that
+writes the `.ts` file, and **Cargo never compiles or runs a dependency's tests**, so enabling it
+from a downstream crate produced no bindings at all. That was verified by deleting `LaunchTarget.ts`
+in ltk-manager and confirming a full `cargo test --workspace` did not recreate it.
 
-This is not theoretical. It was verified by deleting `LaunchTarget.ts` in ltk-manager and confirming
-a full `cargo test --workspace` did not recreate it. Those six binding files are now hand-maintained
-downstream: if one of these types changes here, the `.ts` goes stale **silently** - no build error,
-just a frontend type that quietly disagrees with the backend.
-
-**Recommended fix: drop the feature.** A general-purpose Apache-2.0 client carrying a `ts-rs`
-dependency to serve one consumer's IPC layer is the same category of leak that the `LaunchObserver`
-trait exists to prevent. The downstream crate should own its own IPC-facing shapes. This is cheap
-before publishing and breaking afterwards.
-
-Until then, the feature is documented honestly in the crate README and its export artefacts are kept
-out of the package by `exclude = ["bindings/"]` in `Cargo.toml` - a `.gitignore` does not reliably
-gate `cargo package`, which the CI `publish --dry-run` job caught on its first run.
+ltk-manager now owns the shapes that cross its IPC boundary, which its own plan covers. A
+general-purpose Apache-2.0 client carrying a `ts-rs` dependency to serve one consumer's IPC layer
+was the same category of leak that the `LaunchObserver` trait exists to prevent.
 
 ## API notes that downstream got wrong once
 

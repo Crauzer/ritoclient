@@ -1,5 +1,5 @@
-//! Orchestration that outlives a request: keeping the client's window put for
-//! as long as a game runs.
+//! Orchestration that outlives a request: following a session to its end, and
+//! keeping the client's window put for as long as a game runs.
 //!
 //! Like [`mod@crate::launch`], this sits above [`crate::namespaces`] rather than
 //! among them. It polls, spawns a thread, and decides *when* to drive a route -
@@ -9,9 +9,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
+use ritoclient_api::ClientExt;
+use ritoclient_api::models::product_session::Session;
 use ritoclient_api::namespaces::lifecycle::endpoints::Hide;
 
 use crate::client::Client;
+use crate::models_ext::{SessionExt, SessionPhase, TerminationReason};
+use crate::retry::RetryPolicy;
 
 /// How long to keep watching for the game before giving up.
 ///
@@ -21,14 +25,17 @@ use crate::client::Client;
 const GAME_WAIT_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Polled rather than pushed. `OnJsonApiEvent` would do this without polling,
-/// but a WebSocket for one boolean is not worth the connection.
+/// but a WebSocket for a poll this cheap is not worth the connection.
 const POLL_INTERVAL: Duration = Duration::from_secs(2);
 
 /// Once the game is up there is nothing to do but wait it out, and a session
-/// runs for hours - so the walk of the process table slows down.
+/// runs for hours - so the polling slows down.
 const SESSION_POLL_INTERVAL: Duration = Duration::from_secs(5);
 
-/// A running window-hiding watcher, and the way to call it off.
+/// A running watcher, and the way to call it off.
+///
+/// Both watchers in this module hand one back: [`watch_session`] and
+/// [`hide_for_play_session`].
 ///
 /// Dropping this does **not** stop the watcher. That is deliberate: the common
 /// case is fire-and-forget for the length of a play session, and a guard that
@@ -46,8 +53,9 @@ impl SessionWatch {
     /// Call the watcher off.
     ///
     /// Takes effect at the next poll rather than immediately - the thread is
-    /// usually asleep - so the window may be re-hidden once more after this
-    /// returns. Idempotent.
+    /// usually asleep - so one more poll's worth of work can land after this
+    /// returns: a window re-hidden once more, or one more event on a session
+    /// observer. Idempotent.
     pub fn stop(&self) {
         self.stopped.store(true, Ordering::Relaxed);
     }
@@ -59,6 +67,208 @@ impl SessionWatch {
     /// nothing needs to.
     pub fn is_watching(&self) -> bool {
         !self.stopped.load(Ordering::Relaxed)
+    }
+}
+
+/// What a watched session did.
+///
+/// Reported in order by [`watch_session`]: [`Opened`](Self::Opened) once, then
+/// any number of [`PhaseChanged`](Self::PhaseChanged), then exactly one of
+/// [`Ended`](Self::Ended) or [`Lost`](Self::Lost), after which the watcher is
+/// done.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[non_exhaustive]
+pub enum SessionEvent {
+    /// The client opened the session, at the phase it opened in.
+    Opened {
+        phase: SessionPhase,
+        version: String,
+    },
+    /// The phase moved.
+    PhaseChanged {
+        from: SessionPhase,
+        to: SessionPhase,
+    },
+    /// The session ended, and the client said why.
+    ///
+    /// Both numbers are the client's own. `exit_code` is meaningful only once
+    /// the session has ended, which is exactly when this fires.
+    Ended {
+        exit_code: i64,
+        reason: TerminationReason,
+    },
+    /// The client stopped answering for this session and the game process is
+    /// gone. Separate from [`Ended`](Self::Ended) because no reason arrived - a
+    /// host that reports one must not invent it.
+    Lost,
+}
+
+/// Receives session events.
+///
+/// The same shape as [`LaunchObserver`], for the same reason: the crate
+/// reports, and the host decides how to surface it. Called from the watching
+/// thread, so implementations must be cheap and must not block.
+///
+/// [`LaunchObserver`]: crate::progress::LaunchObserver
+pub trait SessionObserver {
+    fn on_event(&self, event: SessionEvent);
+}
+
+/// Any `Fn(SessionEvent)` is an observer.
+///
+/// The reason a caller can pass a closure instead of declaring a type for one
+/// method. Implementing the trait directly is still there for a receiver that
+/// has state worth naming.
+impl<F: Fn(SessionEvent)> SessionObserver for F {
+    fn on_event(&self, event: SessionEvent) {
+        self(event)
+    }
+}
+
+/// Follow one session until it ends, on a background thread.
+///
+/// Returns immediately. [`SessionEvent`]s arrive on the observer in the order
+/// its docs give, and the thread exits after the terminal one.
+///
+/// The session record is the Riot Client's own bookkeeping, so it is what
+/// answers "did the game actually start?" and, once it is over, "why did it
+/// stop?". The process table still gets a vote, in one direction only: the
+/// client can exit while the game keeps running, and the session record goes
+/// with the client. A lookup that answers nothing is therefore not an ending
+/// on its own - the watcher keeps watching while `game_process` is alive, and
+/// reports [`SessionEvent::Lost`] only when both are gone.
+///
+/// Polling slows from 2 s to 5 s once the session reports `Gameplay` - a
+/// session runs for hours, and nothing is waiting on the answer.
+///
+/// The returned [`SessionWatch`] calls the whole thing off. Ignoring it leaves
+/// the watcher running for the length of the session, which is the
+/// fire-and-forget case.
+///
+/// [`Launcher::watch_session`] is the usual way in, because a launcher already
+/// knows the process name. This exists for the caller that holds a session id
+/// and no launcher.
+///
+/// ```no_run
+/// use ritoclient::session::{SessionEvent, watch_session};
+///
+/// let watch = watch_session("irnZWC1kOMt", "LeagueClient.exe", |event| match event {
+///     SessionEvent::Ended { exit_code, reason } => println!("over: {reason} ({exit_code})"),
+///     event => println!("{event:?}"),
+/// });
+/// // ... the host is shutting down and no longer cares:
+/// watch.stop();
+/// ```
+///
+/// [`Launcher::watch_session`]: crate::launch::Launcher::watch_session
+pub fn watch_session(
+    session_id: impl Into<String>,
+    game_process: impl Into<String>,
+    observer: impl SessionObserver + Send + Sync + 'static,
+) -> SessionWatch {
+    let session_id = session_id.into();
+    let game_process = game_process.into();
+    let stopped = Arc::new(AtomicBool::new(false));
+    let watch = SessionWatch {
+        stopped: Arc::clone(&stopped),
+    };
+
+    std::thread::spawn(move || {
+        // One connection for the whole session, like the hider's - but with
+        // retries, which the hider does not need: here a request lost to the
+        // port change that waking the client causes would read as a missing
+        // session, and a missing session is evidence this watcher acts on.
+        let client = Client::builder()
+            .retry(RetryPolicy::attempts(3))
+            .build()
+            .ok();
+        if client.is_none() {
+            tracing::debug!("Could not build a client; the session can only be watched for loss");
+        }
+
+        let mut tracker = SessionTracker::new();
+        while !stopped.load(Ordering::Relaxed) {
+            let session = client
+                .as_ref()
+                .and_then(|client| client.product_session().external_session(&session_id));
+            let game_alive = crate::processes::is_running(&game_process);
+            if tracker.step(session.as_ref(), game_alive, &observer) {
+                break;
+            }
+            std::thread::sleep(tracker.poll_interval());
+        }
+
+        // Whether it finished or was called off, it is over - so the watch
+        // reports what a caller would otherwise have to guess.
+        stopped.store(true, Ordering::Relaxed);
+    });
+
+    watch
+}
+
+/// The watcher's judgement over one poll, kept apart from the thread that
+/// drives it so tests can run it over hand-built sessions.
+struct SessionTracker {
+    /// The phase last seen. `None` until the first successful lookup.
+    phase: Option<SessionPhase>,
+}
+
+impl SessionTracker {
+    fn new() -> Self {
+        Self { phase: None }
+    }
+
+    /// Digest one poll into events, reporting whether the watch is over.
+    ///
+    /// `game_alive` is the process table's word, and it only matters when
+    /// `session` is `None`.
+    fn step(
+        &mut self,
+        session: Option<&Session>,
+        game_alive: bool,
+        observer: &dyn SessionObserver,
+    ) -> bool {
+        let Some(session) = session else {
+            // The record goes with the Riot Client, the process does not - so
+            // an unanswered lookup ends the watch only once the game is gone
+            // too.
+            if game_alive {
+                return false;
+            }
+            observer.on_event(SessionEvent::Lost);
+            return true;
+        };
+
+        let phase = session.phase();
+        match self.phase.replace(phase.clone()) {
+            None => observer.on_event(SessionEvent::Opened {
+                phase,
+                version: session.version.clone(),
+            }),
+            Some(previous) if previous != phase => {
+                observer.on_event(SessionEvent::PhaseChanged {
+                    from: previous,
+                    to: phase,
+                });
+            }
+            Some(_) => {}
+        }
+
+        if session.has_ended() {
+            observer.on_event(SessionEvent::Ended {
+                exit_code: session.exit_code,
+                reason: session.exit_reason(),
+            });
+            return true;
+        }
+        false
+    }
+
+    fn poll_interval(&self) -> Duration {
+        match self.phase {
+            Some(SessionPhase::Gameplay) => SESSION_POLL_INTERVAL,
+            _ => POLL_INTERVAL,
+        }
     }
 }
 
@@ -211,5 +421,148 @@ mod tests {
 
         handed_out.stop();
         assert!(!watch.is_watching());
+    }
+
+    /// The watcher's judgement, driven over hand-built sessions - the thread
+    /// around it only supplies the polling.
+    mod watching {
+        use super::*;
+
+        use std::sync::Mutex;
+
+        /// Captures the events a watch reported, in order.
+        #[derive(Default)]
+        struct Recorder(Mutex<Vec<SessionEvent>>);
+
+        impl Recorder {
+            fn events(&self) -> Vec<SessionEvent> {
+                self.0.lock().unwrap().clone()
+            }
+        }
+
+        impl SessionObserver for Recorder {
+            fn on_event(&self, event: SessionEvent) {
+                self.0.lock().unwrap().push(event);
+            }
+        }
+
+        fn session(phase: &str, reason: &str) -> Session {
+            Session {
+                phase: phase.to_string(),
+                exit_reason: reason.to_string(),
+                version: "1.0.0".to_string(),
+                ..Session::default()
+            }
+        }
+
+        /// The common life of a launch: opened at `Pending`, one move to
+        /// `Gameplay`, then hours of nothing - and the polling slows for them.
+        #[test]
+        fn a_session_is_opened_then_followed_into_gameplay() {
+            let mut tracker = SessionTracker::new();
+            let recorder = Recorder::default();
+
+            let pending = session("Pending", "StillRunning");
+            assert!(!tracker.step(Some(&pending), false, &recorder));
+            assert_eq!(tracker.poll_interval(), POLL_INTERVAL);
+
+            let playing = session("Gameplay", "StillRunning");
+            assert!(!tracker.step(Some(&playing), true, &recorder));
+            assert_eq!(tracker.poll_interval(), SESSION_POLL_INTERVAL);
+
+            // Steady state is silent - a host must not get an event per poll.
+            assert!(!tracker.step(Some(&playing), true, &recorder));
+
+            assert_eq!(
+                recorder.events(),
+                vec![
+                    SessionEvent::Opened {
+                        phase: SessionPhase::Pending,
+                        version: "1.0.0".to_string(),
+                    },
+                    SessionEvent::PhaseChanged {
+                        from: SessionPhase::Pending,
+                        to: SessionPhase::Gameplay,
+                    },
+                ]
+            );
+        }
+
+        /// `Ended` reports the client's own numbers, not a reading of ours.
+        #[test]
+        fn an_ended_session_reports_the_clients_own_numbers() {
+            let mut tracker = SessionTracker::new();
+            let recorder = Recorder::default();
+            tracker.step(Some(&session("Gameplay", "StillRunning")), true, &recorder);
+
+            let mut over = session("None", "Exit");
+            over.exit_code = 1;
+            assert!(tracker.step(Some(&over), false, &recorder));
+
+            assert_eq!(
+                recorder.events().last(),
+                Some(&SessionEvent::Ended {
+                    exit_code: 1,
+                    reason: TerminationReason::Exit,
+                })
+            );
+        }
+
+        /// The case survey section 1.3 records: the Riot Client exits and takes
+        /// the session record with it while the game keeps running. Not an
+        /// ending on its own - `Lost` needs the process gone too.
+        #[test]
+        fn a_missing_lookup_is_not_an_ending_while_the_game_lives() {
+            let mut tracker = SessionTracker::new();
+            let recorder = Recorder::default();
+            tracker.step(Some(&session("Gameplay", "StillRunning")), true, &recorder);
+
+            assert!(!tracker.step(None, true, &recorder));
+            assert!(tracker.step(None, false, &recorder));
+
+            assert_eq!(
+                recorder.events().last(),
+                Some(&SessionEvent::Lost),
+                "no reason arrived, so the watcher must not invent an Ended"
+            );
+        }
+
+        /// A watch started late still tells the whole story: the first look at
+        /// an already-finished session opens it and ends it in one step.
+        #[test]
+        fn a_session_that_already_ended_opens_and_ends_in_one_step() {
+            let mut tracker = SessionTracker::new();
+            let recorder = Recorder::default();
+
+            assert!(tracker.step(Some(&session("None", "Exit")), false, &recorder));
+
+            assert_eq!(
+                recorder.events(),
+                vec![
+                    SessionEvent::Opened {
+                        phase: SessionPhase::Nothing,
+                        version: "1.0.0".to_string(),
+                    },
+                    SessionEvent::Ended {
+                        exit_code: 0,
+                        reason: TerminationReason::Exit,
+                    },
+                ]
+            );
+        }
+
+        /// A closure is the common observer, and the blanket impl is what lets
+        /// one be passed without a type in between.
+        #[test]
+        fn a_closure_can_observe_events() {
+            let seen = Arc::new(Mutex::new(Vec::new()));
+            let recorder = Arc::clone(&seen);
+            let observer = move |event: SessionEvent| recorder.lock().unwrap().push(event);
+
+            let mut tracker = SessionTracker::new();
+            assert!(tracker.step(None, false, &observer));
+
+            assert_eq!(seen.lock().unwrap().as_slice(), &[SessionEvent::Lost]);
+        }
     }
 }

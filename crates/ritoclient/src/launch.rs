@@ -31,11 +31,14 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
+use ritoclient_api::models::product_session::Session;
 use serde::{Deserialize, Serialize};
 
 use crate::error::LauncherError;
 use crate::progress::{LaunchObserver, LaunchProgress, LaunchStage};
+use crate::session::{SessionObserver, SessionWatch};
 
 /// Which product and patchline to launch.
 ///
@@ -43,8 +46,6 @@ use crate::progress::{LaunchObserver, LaunchProgress, LaunchStage};
 /// the client's own product registry uses, `pbe` exists as a patchline, and
 /// anything else should come from configuration rather than a guess.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchTarget {
     pub product_id: String,
@@ -79,8 +80,6 @@ impl std::fmt::Display for LaunchTarget {
 
 /// How the launch request was delivered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[non_exhaustive]
 pub enum LaunchRoute {
@@ -114,8 +113,6 @@ pub enum LaunchRoute {
 /// the client may still be updating itself, or waiting for the user to log in.
 /// Two of the four routes did not ask for a launch at all - see [`LaunchRoute`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[cfg_attr(feature = "ts", ts(export))]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchOutcome {
     pub route: LaunchRoute,
@@ -126,8 +123,10 @@ pub struct LaunchOutcome {
     ///
     /// The key into `/product-session/v1/external-sessions`, so it is what a
     /// "did the game actually start?" check should follow rather than a process
-    /// name: `ProductSessionHandler::external_session` turns it into a record
-    /// with a phase and, once the game exits, a reason. `SessionExt` reads both.
+    /// name. Hand it to [`Launcher::watch_session`] to follow the session to
+    /// its end, or to `ProductSessionHandler::external_session` for one read -
+    /// that turns it into a record with a phase and, once the game exits, a
+    /// reason. `SessionExt` reads both.
     ///
     /// Present on every route that had one to give, including
     /// [`LaunchRoute::AlreadyRunning`] - a game we did not start still has a
@@ -152,6 +151,52 @@ pub struct Availability {
     pub riot_client_running: bool,
     /// Whether the game is already up.
     pub game_running: bool,
+}
+
+/// Calls a blocking launch off from another thread.
+///
+/// [`Launcher::launch_with_stop`] checks it between the steps of its wait, so
+/// the thread that owns a Cancel button can end a launch that would otherwise
+/// run to the full 120 s boot budget. The flag is per call rather than a field
+/// on [`Launcher`], because a launcher is shared - stopping one launch must
+/// not stop every clone's.
+///
+/// A stopped flag stays stopped, so make a fresh one per attempt.
+///
+/// Cheap to clone and safe to share. Every clone stops the same launch.
+///
+/// ```no_run
+/// use ritoclient::StopFlag;
+///
+/// let stop = StopFlag::new();
+/// let cancel = stop.clone();
+/// // hand `cancel` to the Cancel button, `stop` to the launch:
+/// cancel.stop();
+/// assert!(stop.is_stopped());
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct StopFlag {
+    stopped: Arc<AtomicBool>,
+}
+
+impl StopFlag {
+    /// A flag nothing has stopped yet.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Call the launch off.
+    ///
+    /// Takes effect at the next check between steps, so the launch can lag by
+    /// one in-flight request before it returns. Idempotent.
+    pub fn stop(&self) {
+        self.stopped.store(true, Ordering::Relaxed);
+    }
+
+    /// Whether [`stop`](Self::stop) was asked for.
+    pub fn is_stopped(&self) -> bool {
+        self.stopped.load(Ordering::Relaxed)
+    }
 }
 
 /// Drives one product/patchline through the Riot Client.
@@ -236,15 +281,62 @@ impl Launcher {
     /// Progress arrives on the observer as [`LaunchStage`]s. It matters more
     /// here than in most operations: a client booting from the tray can hold
     /// this call for most of a minute, and silence for that long is
-    /// indistinguishable from a crash.
+    /// indistinguishable from a crash. A host that wants to end that wait
+    /// early calls [`launch_with_stop`](Self::launch_with_stop) instead.
     pub fn launch(&self) -> Result<LaunchOutcome, LauncherError> {
+        self.launch_with_stop(&StopFlag::new())
+    }
+
+    /// Ask the Riot Client to launch the product, with a way to call it off.
+    ///
+    /// [`launch`](Self::launch) with an exit: the wait checks `stop` between
+    /// its steps, and a stopped flag ends the call with
+    /// [`LauncherError::Stopped`]. The check sits between steps rather than
+    /// inside them, so a stop can lag by one in-flight request.
+    ///
+    /// **Stopping abandons the wait, not the launch.** A request the client
+    /// already accepted keeps going at the far end - a timeout cancels
+    /// nothing there, and neither does this. What stopping buys is the
+    /// calling thread back, so a Cancel button is dead for a poll rather
+    /// than for two minutes.
+    ///
+    /// ```no_run
+    /// use ritoclient::ids::{patchlines, products};
+    /// use ritoclient::{LaunchTarget, Launcher, StopFlag};
+    ///
+    /// let launcher = Launcher::builder(
+    ///     LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE),
+    ///     "LeagueClient.exe",
+    /// )
+    /// .build()?;
+    ///
+    /// let stop = StopFlag::new();
+    /// let cancel = stop.clone();
+    /// std::thread::spawn(move || {
+    ///     // ... the player clicked Cancel:
+    ///     cancel.stop();
+    /// });
+    /// launcher.launch_with_stop(&stop)?;
+    /// # Ok::<(), ritoclient::LauncherError>(())
+    /// ```
+    pub fn launch_with_stop(&self, stop: &StopFlag) -> Result<LaunchOutcome, LauncherError> {
         let observer = self.observer.as_ref();
-        let result = launch_inner(
-            self.product_root.as_deref(),
-            &self.target,
-            &self.game_process,
-            observer,
-        );
+
+        // A flag stopped before the call is a caller that changed its mind,
+        // and resolving or waking anything on its behalf would be acting on
+        // the old answer. Checked here rather than in the wait so it holds on
+        // every platform and every route.
+        let result = if stop.is_stopped() {
+            Err(LauncherError::Stopped)
+        } else {
+            launch_inner(
+                self.product_root.as_deref(),
+                &self.target,
+                &self.game_process,
+                observer,
+                stop,
+            )
+        };
 
         // One terminal event per launch, on every exit path, so a listener
         // always gets told the request is over.
@@ -261,6 +353,9 @@ impl Launcher {
                 LaunchStage::AlreadyRunning
             }
             Ok(_) => LaunchStage::Launched,
+            // A stop is not a failure - reporting `Error` for it would put an
+            // error dialog behind every Cancel button.
+            Err(LauncherError::Stopped) => LaunchStage::Stopped,
             Err(_) => LaunchStage::Error,
         };
         observer.on_progress(LaunchProgress::at(stage));
@@ -273,13 +368,109 @@ impl Launcher {
         availability(self.product_root.as_deref(), &self.game_process)
     }
 
+    /// The session the client currently has open on this target.
+    ///
+    /// Read-only and best-effort, so it answers `Option`: `None` when no
+    /// client answered, and when nothing on this target is open. Ended
+    /// sessions are skipped, so a `Some` is always a live record.
+    ///
+    /// This is what lets a host recover. A manager restarted while a game
+    /// runs holds no outcome and no id. It asks this, gets the session back,
+    /// and resumes watching - where the only other answer is a process name,
+    /// which is the guess the session id exists to replace.
+    ///
+    /// ```no_run
+    /// use ritoclient::ids::{patchlines, products};
+    /// use ritoclient::prelude::*;
+    /// use ritoclient::{LaunchTarget, Launcher};
+    ///
+    /// let launcher = Launcher::builder(
+    ///     LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE),
+    ///     "LeagueClient.exe",
+    /// )
+    /// .build()?;
+    ///
+    /// if let Some(session) = launcher.session() {
+    ///     println!("{} ({})", session.phase(), session.version);
+    /// }
+    /// # Ok::<(), ritoclient::LauncherError>(())
+    /// ```
+    pub fn session(&self) -> Option<Session> {
+        open_session(&self.target).map(|(_, session)| session)
+    }
+
+    /// The id of the session the client currently has open on this target.
+    ///
+    /// The key into `/product-session/v1/external-sessions`, and the argument
+    /// [`watch_session`](Self::watch_session) takes. The same lookup as
+    /// [`session`](Self::session), keeping only the handle.
+    ///
+    /// ```no_run
+    /// # use ritoclient::ids::{patchlines, products};
+    /// # use ritoclient::{LaunchTarget, Launcher};
+    /// # let launcher = Launcher::builder(
+    /// #     LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE),
+    /// #     "LeagueClient.exe",
+    /// # )
+    /// # .build()?;
+    /// if let Some(id) = launcher.session_id() {
+    ///     launcher.watch_session(id, |event| println!("{event:?}"));
+    /// }
+    /// # Ok::<(), ritoclient::LauncherError>(())
+    /// ```
+    pub fn session_id(&self) -> Option<String> {
+        open_session(&self.target).map(|(id, _)| id)
+    }
+
+    /// Follow a session until it ends, on a background thread.
+    ///
+    /// Returns immediately. Events arrive on the observer as
+    /// [`SessionEvent`]s - see [`watch_session`] for the order they arrive in,
+    /// and for how an ending is told apart from a lost session. The returned
+    /// [`SessionWatch`] calls it off, and ignoring it leaves the watcher
+    /// running for the length of the session.
+    ///
+    /// `session_id` usually comes from the [`LaunchOutcome`] this launcher
+    /// answered, or from [`session_id`](Self::session_id) after a restart.
+    ///
+    /// ```no_run
+    /// use ritoclient::ids::{patchlines, products};
+    /// use ritoclient::session::SessionEvent;
+    /// use ritoclient::{LaunchTarget, Launcher};
+    ///
+    /// let launcher = Launcher::builder(
+    ///     LaunchTarget::new(products::LEAGUE_OF_LEGENDS, patchlines::LIVE),
+    ///     "LeagueClient.exe",
+    /// )
+    /// .build()?;
+    ///
+    /// let outcome = launcher.launch()?;
+    /// if let Some(id) = &outcome.session_id {
+    ///     launcher.watch_session(id, |event| match event {
+    ///         SessionEvent::Ended { exit_code, reason } => {
+    ///             println!("over: {reason} ({exit_code})");
+    ///         }
+    ///         event => println!("{event:?}"),
+    ///     });
+    /// }
+    /// # Ok::<(), ritoclient::LauncherError>(())
+    /// ```
+    ///
+    /// [`SessionEvent`]: crate::session::SessionEvent
+    /// [`watch_session`]: crate::session::watch_session
+    pub fn watch_session(
+        &self,
+        session_id: impl Into<String>,
+        observer: impl SessionObserver + Send + Sync + 'static,
+    ) -> SessionWatch {
+        crate::session::watch_session(session_id, self.game_process.clone(), observer)
+    }
+
     /// Keep the Riot Client's window hidden for one play session.
     ///
     /// Returns immediately; the returned [`SessionWatch`] calls it off. See
     /// [`session`](crate::session) for what it does and why it hides twice.
-    ///
-    /// [`SessionWatch`]: crate::session::SessionWatch
-    pub fn hide_during_session(&self) -> crate::session::SessionWatch {
+    pub fn hide_during_session(&self) -> SessionWatch {
         crate::session::hide_for_play_session(self.game_process.clone())
     }
 
@@ -408,10 +599,11 @@ fn launch_inner(
     target: &LaunchTarget,
     game_process: &str,
     observer: &dyn LaunchObserver,
+    stop: &StopFlag,
 ) -> Result<LaunchOutcome, LauncherError> {
     #[cfg(not(target_os = "windows"))]
     {
-        let _ = (product_root, target, game_process, observer);
+        let _ = (product_root, target, game_process, observer, stop);
         Err(LauncherError::UnsupportedPlatform)
     }
 
@@ -429,8 +621,8 @@ fn launch_inner(
         tracing::debug!("Resolved Riot Client: {}", riot_client_exe.display());
 
         match crate::lockfile::live_lockfile() {
-            Some(lockfile) => hand_off(lockfile.pid, target, game_process, observer),
-            None => cold_start(&riot_client_exe, target, game_process, observer),
+            Some(lockfile) => hand_off(lockfile.pid, target, game_process, observer, stop),
+            None => cold_start(&riot_client_exe, target, game_process, observer, stop),
         }
     }
 }
@@ -448,6 +640,7 @@ fn cold_start(
     target: &LaunchTarget,
     game_process: &str,
     observer: &dyn LaunchObserver,
+    stop: &StopFlag,
 ) -> Result<LaunchOutcome, LauncherError> {
     use ritoclient_core::client::Client;
 
@@ -466,6 +659,7 @@ fn cold_start(
         target,
         game_process,
         observer,
+        stop,
     )
 }
 
@@ -483,7 +677,7 @@ fn cold_start(
 fn already_running(target: &LaunchTarget, game_pid: u32) -> LaunchOutcome {
     let riot_client_pid = crate::lockfile::live_lockfile().map(|l| l.pid);
 
-    if let Some(session_id) = open_session_id(target) {
+    if let Some((session_id, _)) = open_session(target) {
         return LaunchOutcome {
             route: LaunchRoute::AlreadyRunning,
             riot_client_pid,
@@ -537,20 +731,18 @@ fn adopt(target: &LaunchTarget, game_pid: u32) -> Option<String> {
     response.json::<String>().ok()
 }
 
-/// The client's own id for a session it already has open on this target.
+/// The session the client already has open on this target, with its id.
 ///
 /// The process scan answers *whether* something is running; this answers *what*
 /// the client thinks it is, which is the handle a caller needs to follow the
 /// session afterwards. Best-effort by construction: a client that cannot answer
-/// leaves the outcome without an id, which is what it carried before this
-/// existed.
+/// yields nothing, which every caller treats as "no session to report".
 ///
 /// Ended sessions are skipped. The client keeps them around after the game
 /// exits, so the newest matching record is not necessarily a live one, and
 /// handing back a finished session as if it were the running game would be
 /// worse than handing back nothing.
-#[cfg(target_os = "windows")]
-fn open_session_id(target: &LaunchTarget) -> Option<String> {
+fn open_session(target: &LaunchTarget) -> Option<(String, Session)> {
     use ritoclient_api::ClientExt;
     use ritoclient_core::client::Client;
 
@@ -566,7 +758,6 @@ fn open_session_id(target: &LaunchTarget) -> Option<String> {
                 && session.patchline_id == target.patchline_id
                 && !session.has_ended()
         })
-        .map(|(id, _)| id)
 }
 
 /// What the launcher plugin has to say for itself right now.
@@ -845,6 +1036,7 @@ fn hand_off(
     target: &LaunchTarget,
     game_process: &str,
     observer: &dyn LaunchObserver,
+    stop: &StopFlag,
 ) -> Result<LaunchOutcome, LauncherError> {
     use ritoclient_api::ClientExt;
     use ritoclient_core::client::Client;
@@ -871,10 +1063,12 @@ fn hand_off(
         target,
         game_process,
         observer,
+        stop,
     )
 }
 
-/// Drive a client to a launch, waiting for as long as it takes it to get there.
+/// Drive a client to a launch, waiting for as long as it takes it to get
+/// there - or until `stop` says the caller no longer wants the answer.
 ///
 /// One question per pass - is the game up, is the launcher serving, will it
 /// take this - and every one of them can answer "not yet" without that being a
@@ -898,6 +1092,7 @@ fn wait_for_launcher(
     target: &LaunchTarget,
     game_process: &str,
     observer: &dyn LaunchObserver,
+    stop: &StopFlag,
 ) -> Result<LaunchOutcome, LauncherError> {
     use std::time::{Duration, Instant};
 
@@ -941,6 +1136,13 @@ fn wait_for_launcher(
     let mut last_wake: Option<Instant> = None;
 
     loop {
+        // Checked once per pass, between steps: a stop must not cancel a POST
+        // mid-flight, because a request already sent may already be accepted.
+        if stop.is_stopped() {
+            tracing::info!("The caller stopped the launch; abandoning the wait");
+            return Err(LauncherError::Stopped);
+        }
+
         // Nothing we sent can have started it - the wake is empty and the cold
         // start is bare - so this is the user pressing Play, or a launch that
         // was already in flight when we arrived. Either way the caller wanted
@@ -950,7 +1152,7 @@ fn wait_for_launcher(
             return Ok(LaunchOutcome {
                 route,
                 riot_client_pid: Some(riot_client_pid),
-                session_id: open_session_id(target),
+                session_id: open_session(target).map(|(id, _)| id),
             });
         }
 
@@ -1265,6 +1467,47 @@ mod tests {
                 Readiness::NotYet { reason } => assert!(reason.contains("503"))
             );
         }
+    }
+
+    /// Every clone stops the same launch - the flag exists to be handed to a
+    /// Cancel button on another thread. Stopping twice must stay stopped.
+    #[test]
+    fn stop_flag_clones_share_one_flag() {
+        let flag = StopFlag::new();
+        assert!(!flag.is_stopped());
+
+        let handed_out = flag.clone();
+        handed_out.stop();
+        assert!(flag.is_stopped());
+
+        flag.stop();
+        assert!(flag.is_stopped());
+    }
+
+    /// A flag stopped before the call must end the launch before anything is
+    /// resolved or woken, and it must still announce a terminal stage - a
+    /// listener's spinner is up either way. Runs on every platform because the
+    /// check sits ahead of the platform gate.
+    #[test]
+    fn a_stopped_flag_ends_the_launch_before_it_starts() {
+        use std::sync::Mutex;
+
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let recorder = Arc::clone(&seen);
+        let launcher = Launcher::builder(
+            LaunchTarget::new("league_of_legends", "live"),
+            "leagueclient.exe",
+        )
+        .on_progress(move |progress| recorder.lock().unwrap().push(progress.stage))
+        .build()
+        .unwrap();
+
+        let stop = StopFlag::new();
+        stop.stop();
+
+        let error = launcher.launch_with_stop(&stop).unwrap_err();
+        assert!(matches!(error, LauncherError::Stopped));
+        assert_eq!(*seen.lock().unwrap(), vec![LaunchStage::Stopped]);
     }
 
     /// The one thing `build` validates. An empty name is not a launch failure -

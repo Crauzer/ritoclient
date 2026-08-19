@@ -136,14 +136,6 @@ empty result rather than failing to build.
 | Feature    | Default | Effect                                                  |
 | ---------- | ------- | -------------------------------------------------------- |
 | `launcher` | **on**  | The launch/session orchestration and its Win32 half. Off, this crate is the typed API surface plus the on-disk records |
-| `ts`       | off     | Derives `ts_rs::TS` on the types that cross an IPC boundary |
-
-`ts` is narrow, and worth understanding before reaching for it. `ts_rs` exports
-by generating a `#[test]` that writes a `.ts` file, and **Cargo never runs a
-dependency's tests** - so enabling this feature from a downstream crate does not
-produce any bindings. It is useful only when this crate is built as a path or
-workspace member. Set `TS_RS_EXPORT_DIR` to choose where the files land;
-otherwise they go to `crates/ritoclient/bindings/`, which is gitignored.
 
 ## License
 

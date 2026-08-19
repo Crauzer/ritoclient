@@ -173,7 +173,7 @@
 //! ```no_run
 //! use ritoclient::ids::{patchlines, products};
 //! use ritoclient::prelude::*;
-//! use ritoclient::{Client, LaunchTarget, Launcher};
+//! use ritoclient::{LaunchTarget, Launcher};
 //!
 //! // One launcher per product. Build it once and keep it: cheap to clone, safe
 //! // to share across threads.
@@ -193,11 +193,16 @@
 //!     // Keeps the Riot Client window in the tray for this session.
 //!     let watch = launcher.hide_during_session();
 //!
-//!     // The session id answers "did the game actually start?".
-//!     if let (Some(id), Ok(client)) = (&outcome.session_id, Client::new()) {
-//!         if let Some(session) = client.product_session().external_session(id) {
-//!             println!("{} ({})", session.phase(), session.version);
-//!         }
+//!     // The session id answers "did the game actually start?" - follow the
+//!     // session to its end rather than polling by hand.
+//!     if let Some(id) = &outcome.session_id {
+//!         launcher.watch_session(id, |event| println!("{event:?}"));
+//!     }
+//!
+//!     // A host restarted under a running game holds no outcome; the same
+//!     // record is one call away.
+//!     if let Some(session) = launcher.session() {
+//!         println!("{} ({})", session.phase(), session.version);
 //!     }
 //!
 //!     // Later, when the player asks to stop:
@@ -210,6 +215,10 @@
 //! It returns as soon as the request is *delivered*, which is not the same as
 //! the game being up: the client may still patch, or wait for a login. The
 //! session id is the handle for that; see `examples/launch.rs`.
+//!
+//! [`Launcher::launch_with_stop`] is the same call with an exit: hand its
+//! [`StopFlag`] to a Cancel button, and the wait ends with
+//! [`LauncherError::Stopped`] instead of running out the boot budget.
 //!
 //! # Examples
 //!
@@ -292,7 +301,7 @@ pub use error::LauncherError;
 pub use installs::{RiotClientInstalls, default_installs_path, resolve_riot_client};
 #[cfg(feature = "launcher")]
 pub use launch::{
-    Availability, LaunchOutcome, LaunchRoute, LaunchTarget, Launcher, LauncherBuilder,
+    Availability, LaunchOutcome, LaunchRoute, LaunchTarget, Launcher, LauncherBuilder, StopFlag,
     availability, close,
 };
 pub use lockfile::{Lockfile, default_lockfile_path, live_lockfile};
@@ -304,7 +313,9 @@ pub use progress::{LaunchObserver, LaunchProgress, LaunchStage, NullObserver};
 pub use retry::{Backoff, RetryPolicy};
 pub use route::Route;
 #[cfg(feature = "launcher")]
-pub use session::{SessionWatch, hide_for_play_session};
+pub use session::{
+    SessionEvent, SessionObserver, SessionWatch, hide_for_play_session, watch_session,
+};
 pub use types::RiotError;
 
 /// The extension traits, in one `use`.

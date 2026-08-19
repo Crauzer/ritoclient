@@ -13,9 +13,7 @@ use thiserror::Error;
 /// caller always has a fallback and "the client didn't tell us" is not a failure
 /// worth surfacing.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Error)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[non_exhaustive]
-#[cfg_attr(feature = "ts", ts(export))]
 #[serde(
     tag = "kind",
     rename_all = "SCREAMING_SNAKE_CASE",
@@ -51,6 +49,17 @@ pub enum LauncherError {
         riot_error_code: String,
         message: String,
     },
+
+    /// The caller stopped the launch while it was waiting.
+    ///
+    /// Reported when the `StopFlag` handed to `Launcher::launch_with_stop` was
+    /// stopped. Not a failure of anything: nothing about the machine or the
+    /// client is wrong, so a host should treat it as the cancel the user asked
+    /// for rather than showing an error. Stopping abandons the wait and not
+    /// the launch - a request the Riot Client already accepted keeps going at
+    /// the far end, exactly as a timeout would leave it.
+    #[error("The caller stopped the launch")]
+    Stopped,
 
     /// A launcher was configured with something it cannot use.
     ///
@@ -102,6 +111,9 @@ mod tests {
             json["installsPath"],
             "C:/ProgramData/Riot Games/RiotClientInstalls.json"
         );
+
+        let json = serde_json::to_value(LauncherError::Stopped).unwrap();
+        assert_eq!(json["kind"], "STOPPED");
     }
 
     /// The conversion exists so callers can use `?` instead of repeating one

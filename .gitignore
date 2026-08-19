@@ -1,9 +1,5 @@
 /target
 
-# `ts(export)` writes here when the `ts` feature is on. The bindings belong to
-# whichever consumer asked for them, not to this repo - see the README.
-crates/*/bindings/
-
 *.pdb
 .DS_Store
 Thumbs.db

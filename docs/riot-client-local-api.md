@@ -457,6 +457,32 @@ leaving the launcher parked on the desktop behind the game is the worse default)
 The hide is deferred to a background thread that waits for the game process, because at the moment
 the launch request is accepted the game is not up yet - and on a cold start it is minutes away.
 
+**Re-probed 2026-08-19** against a booted 137.0.3.4826 (1275 functions in `/help`), looking for a
+"stay hidden" lever that would make the deferred hide and its re-assert loop unnecessary:
+
+| Route                                                     | Description (from `/help`)                                                          | Status                                                        |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `GET/PUT/DELETE /riot-client-lifecycle/v1/ux-command`     | DELETE: "Deletes the current UX command so that the default client UX app no longer needs to process it" | GET **called**: 404 `"No command found."` while nothing pends |
+| `PUT /rnet-lifecycle/v1/hide` / `quit` / `restart`        | `quit`: "Quit Riot Client. If any games are running hide Riot Client instead."       | present, not called                                             |
+| `GET /rnet-lifecycle/v1/product-context-phase`            | The phase of the lifecycle path's product context                                    | **called**: 404 "Product context not available yet"            |
+
+Three things fell out of this probe too:
+
+1. **No "stay hidden" or "launch hidden" function exists.** All 1275 names and descriptions were
+   swept for hide/show/window/tray/visible/minimize/foreground. The client's own window has `hide`
+   and `show` in two spellings (`riot-client-lifecycle` v1 POST, `rnet-lifecycle` v1 PUT), and
+   nothing else.
+2. **The game-exit un-hide is a UX command, and the pending command is addressable.** The
+   `UxCommand` type is `{ action, parameters, showUxIfHidden: bool }` - the very flag the re-hide
+   loop exists to fight (actions: `ShowLogin`, `ShowAllProducts`, `ShowProduct`, `ShowSettings`,
+   `PassFocusPermissionToFoundation`, `Test`, `ShowModal`). `DELETE .../ux-command` removes the
+   pending command before the UX processes it, which would suppress the un-hide at its source
+   instead of racing it with re-hides. Untested against a real game exit - the delete may lose the
+   same race the re-hide does.
+3. **`product-context-phase` is not a "game up" signal for us.** It answers only on the lifecycle
+   launch path, which our launches deliberately do not walk. The session record stays the honest
+   "did it start?" source for the `product-launcher` route.
+
 ### 1.10 Push events - the real list **[verified]**
 
 61 events, subscribed over WSS with `[5, "OnJsonApiEvent_..."]`. The ones that matter:

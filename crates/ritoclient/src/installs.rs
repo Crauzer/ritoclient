@@ -17,6 +17,18 @@ pub struct RiotClientInstalls {
     /// slashes and a trailing slash.
     #[serde(default)]
     pub associated_client: HashMap<String, String>,
+    /// Maps a Riot Client patchline to the client that serves it. Keys carry a
+    /// trailing platform suffix - `KeystoneFoundationLiveWin` on a live Windows
+    /// install (shape confirmed against a live file, 2026-08-19).
+    ///
+    /// Each client writes its own entry on every launch, alongside `rc_default`
+    /// and `rc_live`. Unlike those, the key names the patchline: `rc_default`
+    /// is only whichever client launched last, which on a machine with several
+    /// Riot products is a coin flip. Read it with
+    /// [`patchline_client`](Self::patchline_client), which knows the suffix
+    /// rule.
+    #[serde(default)]
+    pub patchlines: HashMap<String, String>,
     #[serde(default)]
     pub rc_default: Option<String>,
     #[serde(default)]
@@ -65,6 +77,34 @@ impl RiotClientInstalls {
         out.extend(self.rc_default.clone());
         out.extend(self.rc_live.clone());
         out
+    }
+
+    /// The client that serves a Riot Client patchline.
+    ///
+    /// Mirrors the client's own resolver (`FindRiotClientForPatchline`): the
+    /// lookup is tried verbatim, then retried with a trailing `Win` stripped
+    /// from `patchline` when the first misses. The retry strips the query and
+    /// never the stored keys, so ask with the suffixed spelling.
+    ///
+    /// ```
+    /// use ritoclient::installs::RiotClientInstalls;
+    ///
+    /// let installs: RiotClientInstalls = serde_json::from_str(
+    ///     r#"{ "patchlines": { "KeystoneFoundationLive": "C:/rc/RiotClientServices.exe" } }"#,
+    /// )
+    /// .unwrap();
+    ///
+    /// // An older file may key without the platform suffix - the retry covers it.
+    /// assert_eq!(
+    ///     installs.patchline_client("KeystoneFoundationLiveWin"),
+    ///     Some("C:/rc/RiotClientServices.exe"),
+    /// );
+    /// ```
+    pub fn patchline_client(&self, patchline: &str) -> Option<&str> {
+        self.patchlines
+            .get(patchline)
+            .or_else(|| self.patchlines.get(patchline.strip_suffix("Win")?))
+            .map(String::as_str)
     }
 }
 
@@ -137,6 +177,7 @@ mod tests {
             "C:/Riot Games/League of Legends/": "C:/Riot Games/Riot Client/RiotClientServices.exe"
         },
         "patchlines": { "KeystoneFoundationLiveWin": "C:/other/RiotClientServices.exe" },
+        "a_key_riot_adds_next_patch": { "nested": true },
         "rc_default": "C:/default/RiotClientServices.exe",
         "rc_live": "C:/live/RiotClientServices.exe"
     }"#;
@@ -149,6 +190,7 @@ mod tests {
     fn deserializes_the_full_document_and_ignores_unknown_keys() {
         let installs = parse(FULL);
         assert_eq!(installs.associated_client.len(), 1);
+        assert_eq!(installs.patchlines.len(), 1);
         assert_eq!(
             installs.rc_default.as_deref(),
             Some("C:/default/RiotClientServices.exe")
@@ -163,8 +205,42 @@ mod tests {
     fn deserializes_with_every_key_missing() {
         let installs = parse("{}");
         assert!(installs.associated_client.is_empty());
+        assert!(installs.patchlines.is_empty());
         assert!(installs.rc_default.is_none());
         assert!(installs.rc_live.is_none());
+    }
+
+    #[test]
+    fn patchline_client_matches_the_stored_key_verbatim() {
+        let installs = parse(FULL);
+        assert_eq!(
+            installs.patchline_client("KeystoneFoundationLiveWin"),
+            Some("C:/other/RiotClientServices.exe")
+        );
+        assert_eq!(installs.patchline_client("KeystoneFoundationPbeWin"), None);
+    }
+
+    /// The retry the client's `FindRiotClientForPatchline` does: a file written
+    /// before the platform suffix keys `KeystoneFoundationLive`, and a suffixed
+    /// query must still find it.
+    #[test]
+    fn patchline_client_retries_with_the_win_suffix_stripped() {
+        let legacy = parse(
+            r#"{ "patchlines": { "KeystoneFoundationLive": "C:/legacy/RiotClientServices.exe" } }"#,
+        );
+        assert_eq!(
+            legacy.patchline_client("KeystoneFoundationLiveWin"),
+            Some("C:/legacy/RiotClientServices.exe")
+        );
+    }
+
+    /// The retry strips the query, never the stored keys - that is the
+    /// direction the client's own resolver goes, so a bare query must not
+    /// match a suffixed key.
+    #[test]
+    fn a_bare_query_does_not_match_a_suffixed_key() {
+        let installs = parse(FULL);
+        assert_eq!(installs.patchline_client("KeystoneFoundationLive"), None);
     }
 
     #[test]
