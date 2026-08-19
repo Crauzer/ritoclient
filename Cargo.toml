@@ -19,7 +19,7 @@ authors = ["Crauzer"]
 ritoclient-core = { version = "=0.1.0", path = "crates/ritoclient-core" }
 ritoclient-api = { version = "=0.1.0", path = "crates/ritoclient-api" }
 
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.13", features = ["blocking"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
