@@ -22,6 +22,7 @@
 //! [`ritoclient_core::types`].
 
 mod flat;
+mod tolerant;
 
 pub mod product_registry;
 pub mod product_session;

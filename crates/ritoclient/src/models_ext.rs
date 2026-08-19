@@ -458,6 +458,56 @@ mod tests {
             assert!(!empty.is_playing());
         }
 
+        /// Recorded from a live session on client 137 (EUW, 2026-08-19), with
+        /// `launchConfiguration` stripped as the crate's logging rule requires.
+        ///
+        /// The `null` is the whole reason this fixture exists. `exitReason` is
+        /// documented as a string and typed as one, and a live session sends
+        /// null rather than the `StillRunning` the docs promise - so every poll
+        /// failed to deserialize, `external_session` answered `None`, and the
+        /// watcher spent a whole game believing there was no session to watch.
+        /// A parse failure that presents as a feature quietly doing nothing is
+        /// the expensive kind.
+        #[test]
+        fn a_live_session_reports_a_null_exit_reason() {
+            let recorded = r#"{
+                "exitCode": 0,
+                "exitReason": null,
+                "isInternal": false,
+                "patchlineFullName": "League of Legends",
+                "patchlineId": "live",
+                "phase": "None",
+                "productId": "league_of_legends",
+                "version": "24C2E5A086AFFB82"
+            }"#;
+
+            let session: Session = serde_json::from_str(recorded).unwrap();
+
+            assert_eq!(session.exit_reason, "");
+            assert!(!session.has_ended(), "a null reason is not an ending");
+            assert_eq!(session.product_id, "league_of_legends");
+            assert_eq!(session.version, "24C2E5A086AFFB82");
+        }
+
+        /// The same null in the shape the endpoint actually returns: a map of
+        /// session id to record. One unparseable entry failed the whole
+        /// response, so the `host_app` session the client always keeps could
+        /// take the game's down with it.
+        #[test]
+        fn a_null_survives_the_map_the_endpoint_returns() {
+            let recorded = r#"{
+                "fz7WWY9jC7WS016HZ3dtbA": { "productId": "league_of_legends", "exitReason": null },
+                "host_app": { "productId": "riot_client", "patchlineId": null, "exitReason": null }
+            }"#;
+
+            let sessions: std::collections::HashMap<String, Session> =
+                serde_json::from_str(recorded).unwrap();
+
+            assert_eq!(sessions.len(), 2);
+            assert!(!sessions["fz7WWY9jC7WS016HZ3dtbA"].has_ended());
+            assert_eq!(sessions["host_app"].patchline_id, "");
+        }
+
         /// The point of typing these: a `match` gets checked, and the values
         /// still round-trip to the client's own spelling.
         #[test]

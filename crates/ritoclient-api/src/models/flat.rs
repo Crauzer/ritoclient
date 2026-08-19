@@ -21,9 +21,13 @@
 //! lives in the `ritoclient` crate as extension traits, so regenerating this
 //! crate can never clobber it.
 //!
-//! Everything deserializes tolerantly - `#[serde(default)]`, unknown keys
-//! ignored - because these namespaces churn between patches and a caller always
-//! has a fallback. That is a generator policy, not a per-type decision.
+//! Everything deserializes tolerantly, because these namespaces churn between
+//! patches and a caller always has a fallback. That is a generator policy, not a
+//! per-type decision, and it takes three parts: `#[serde(default)]` for a key
+//! that is absent, [`or_default`](super::tolerant::or_default) on every field
+//! for one that is present and `null`, and unknown keys ignored. Only the first
+//! and last come from `derive`. The middle one is the case that took the session
+//! watcher out, and it costs an attribute per field.
 //!
 //! `Serialize` is derived too, so a host can forward one of these to its own
 //! frontend without restating it. Round-tripping is not the point and is not
@@ -31,6 +35,8 @@
 //! kept and nothing else.
 
 use serde::{Deserialize, Serialize};
+
+use super::tolerant::or_default;
 
 /// One session the client is tracking: what is running, and how it ended.
 ///
@@ -48,26 +54,44 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct ProductSessionSession {
-    #[serde(rename = "productId")]
+    #[serde(rename = "productId", deserialize_with = "or_default")]
     pub product_id: String,
-    #[serde(rename = "patchlineId")]
+    #[serde(rename = "patchlineId", deserialize_with = "or_default")]
     pub patchline_id: String,
-    #[serde(rename = "patchlineFullName")]
+    #[serde(rename = "patchlineFullName", deserialize_with = "or_default")]
     pub patchline_full_name: String,
+    /// The content release the session is running, e.g. `24C2E5A086AFFB82` - the
+    /// same shape as [`release_id`](RnetProductRegistryPatchline::release_id),
+    /// not the patch number a player would recognise. Worth saying, because
+    /// "version" invites putting it on screen.
+    #[serde(deserialize_with = "or_default")]
     pub version: String,
-    /// `Gameplay` once the game is up. `Pending` while the client is still getting
-    /// it there, `Idle` for a session that exists but is not playing, `None` when
-    /// the client has nothing to say.
+    /// What the session is doing. `Gameplay` while a match is running, `Pending`
+    /// while the client is still getting one there, `Idle` for a session that
+    /// exists but is not playing.
+    ///
+    /// **Not a test for "the game is up".** Recorded from client 137: with
+    /// `LeagueClient.exe` running and the player sitting in the client, this
+    /// reads `None` - the client saying it has nothing to report, which is a
+    /// different fact from the process being absent. Ask the process table
+    /// for that one.
+    #[serde(deserialize_with = "or_default")]
     pub phase: String,
     /// Meaningful only once the session has ended - `exit_reason` is what says
     /// whether it has.
-    #[serde(rename = "exitCode")]
+    #[serde(rename = "exitCode", deserialize_with = "or_default")]
     pub exit_code: i64,
-    /// `StillRunning` until the session ends, then `Exit` for a normal one and
-    /// `Interrupt` / `Timeout` / `Unknown` for the rest. This is the field that
-    /// answers "is it over?"; a game that died on startup gives a reason here
-    /// instead of just vanishing from the process table.
-    #[serde(rename = "exitReason")]
+    /// How the session ended: `Exit` for a normal one, `Interrupt` / `Timeout` /
+    /// `Unknown` for the rest. This is the field that answers "is it over?" - a
+    /// game that died on startup gives a reason here instead of just vanishing
+    /// from the process table.
+    ///
+    /// **A live session reports `null`**, recorded from client 137, which is one
+    /// of the reasons every field here tolerates one. `StillRunning` is a
+    /// documented value for the same state, so assume neither spelling and read
+    /// it through the `ritoclient` crate's `SessionExt::has_ended` instead of
+    /// comparing.
+    #[serde(rename = "exitReason", deserialize_with = "or_default")]
     pub exit_reason: String,
 }
 
@@ -75,7 +99,9 @@ pub struct ProductSessionSession {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct RnetProductRegistryProduct {
+    #[serde(deserialize_with = "or_default")]
     pub id: String,
+    #[serde(deserialize_with = "or_default")]
     pub patchlines: Vec<RnetProductRegistryPatchline>,
 }
 
@@ -87,26 +113,37 @@ pub struct RnetProductRegistryProduct {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct RnetProductRegistryPatchline {
+    #[serde(deserialize_with = "or_default")]
     pub id: String,
     /// `league_of_legends.live` - joins onto `/patch/v1/installs` and the
     /// ProgramData metadata directory.
+    #[serde(deserialize_with = "or_default")]
     pub install_id: String,
     /// Already localized and already disambiguated ("League of Legends PBE"),
     /// so there is no need to synthesize a display name.
+    #[serde(deserialize_with = "or_default")]
     pub full_name: String,
     /// The install root. Empty when the patchline is not installed.
+    #[serde(deserialize_with = "or_default")]
     pub install_full_path: String,
+    #[serde(deserialize_with = "or_default")]
     pub install_dir: String,
+    #[serde(deserialize_with = "or_default")]
     pub primary_executable: String,
     /// The content release on disk, e.g. `ED5FB7B738681EE8`. This is the key
     /// that changes when the game patches.
+    #[serde(deserialize_with = "or_default")]
     pub release_id: String,
     /// Informative only - reports `unsupported_region` for a patchline the
     /// account's region has no configuration for, which says nothing about
     /// whether it is installed.
+    #[serde(deserialize_with = "or_default")]
     pub configuration_status: String,
+    #[serde(deserialize_with = "or_default")]
     pub vanguard_dependency: bool,
+    #[serde(deserialize_with = "or_default")]
     pub launch_disabled: bool,
+    #[serde(deserialize_with = "or_default")]
     pub secondary_patchlines: Vec<RnetProductRegistrySecondaryPatchline>,
 }
 
@@ -114,6 +151,7 @@ pub struct RnetProductRegistryPatchline {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct RnetProductRegistrySecondaryPatchline {
+    #[serde(deserialize_with = "or_default")]
     pub id: String,
     /// Relative to the parent's `install_full_path`.
     ///
@@ -121,6 +159,10 @@ pub struct RnetProductRegistrySecondaryPatchline {
     /// `alias` is insurance for the day that stops being true, and is the kind
     /// of judgement a schema cannot supply - it comes from the generator's
     /// override file, not from `/help`.
-    #[serde(rename = "relativePath", alias = "relative_path")]
+    #[serde(
+        rename = "relativePath",
+        alias = "relative_path",
+        deserialize_with = "or_default"
+    )]
     pub relative_path: String,
 }

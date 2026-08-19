@@ -92,6 +92,8 @@ fn main() {
 
     println!("\n{:#?}", client.product_registry().products());
 
+    sessions(&client);
+
     // The parsed view drops anything this crate does not model, so the raw body
     // is the only way to notice a field worth modelling.
     for route in [
@@ -136,6 +138,39 @@ fn main() {
         Route::new("launch-restriction", 1, "restrictions"),
     ] {
         confirm(&client, route);
+    }
+}
+
+/// Sessions the client is tracking, parsed rather than dumped.
+///
+/// The one namespace this survey must never `dump`: the raw body carries an
+/// `rso_auth.authorization-key` inside `launchConfiguration`, and this output
+/// goes into bug reports. The parsed view cannot carry it, because the field is
+/// not on the type - so this is safe by construction rather than by remembering.
+///
+/// Worth a section of its own because a session that fails to parse is invisible
+/// everywhere else: the lookup answers `None`, the watcher reads that as "no
+/// session yet", and a launcher-shaped misbehaviour with no error attached is
+/// exactly what this survey is the first step for.
+fn sessions(client: &Client) {
+    let Some(sessions) = client.product_session().external_sessions() else {
+        println!("\nsessions: the client reported none, or the response did not parse");
+        return;
+    };
+
+    println!("\nsessions: {} tracked", sessions.len());
+    for (id, session) in &sessions {
+        println!(
+            "  {id}: {}/{} phase={} playing={} ended={} reason={} code={} release={}",
+            session.product_id,
+            session.patchline_id,
+            session.phase(),
+            session.is_playing(),
+            session.has_ended(),
+            session.exit_reason(),
+            session.exit_code,
+            session.version,
+        );
     }
 }
 
