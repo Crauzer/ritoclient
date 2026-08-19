@@ -73,7 +73,8 @@ impl SessionWatch {
 /// What a watched session did.
 ///
 /// Reported in order by [`watch_session`]: [`Opened`](Self::Opened) once, then
-/// any number of [`PhaseChanged`](Self::PhaseChanged), then exactly one of
+/// any number of [`PhaseChanged`](Self::PhaseChanged) and
+/// [`GameRunning`](Self::GameRunning), then exactly one of
 /// [`Ended`](Self::Ended) or [`Lost`](Self::Lost), after which the watcher is
 /// done.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -83,12 +84,32 @@ pub enum SessionEvent {
     Opened {
         phase: SessionPhase,
         version: String,
+        /// Whether the game process was already up when the session opened.
+        ///
+        /// False for the ordinary launch - the client mints the session first
+        /// and the process follows a few seconds later - and true for a session
+        /// adopted or recovered under a game that was already running.
+        game_running: bool,
     },
     /// The phase moved.
+    ///
+    /// This is what the *match* is doing, not whether the game is up: see
+    /// [`SessionPhase`] for why those are different questions, and
+    /// [`GameRunning`](Self::GameRunning) for the other one.
     PhaseChanged {
         from: SessionPhase,
         to: SessionPhase,
     },
+    /// The game process appeared, or went away.
+    ///
+    /// The answer to "is the game up", which the phase does not give: a client
+    /// sitting on its own home screen reports phase `None` with the process
+    /// very much alive. A host that acts on the game existing - applying mods,
+    /// hiding a window, saying so in a status bar - wants this one.
+    ///
+    /// Fires only on a change, so the state at the start of the watch rides on
+    /// [`Opened`](Self::Opened) instead.
+    GameRunning { running: bool },
     /// The session ended, and the client said why.
     ///
     /// Both numbers are the client's own. `exit_code` is meaningful only once
@@ -131,15 +152,20 @@ impl<F: Fn(SessionEvent)> SessionObserver for F {
 /// its docs give, and the thread exits after the terminal one.
 ///
 /// The session record is the Riot Client's own bookkeeping, so it is what
-/// answers "did the game actually start?" and, once it is over, "why did it
-/// stop?". The process table still gets a vote, in one direction only: the
-/// client can exit while the game keeps running, and the session record goes
-/// with the client. A lookup that answers nothing is therefore not an ending
-/// on its own - the watcher keeps watching while `game_process` is alive, and
-/// reports [`SessionEvent::Lost`] only when both are gone.
+/// answers "why did it stop?" once it is over. It does **not** answer "is the
+/// game up" - a client sitting on its own home screen reports phase `None` with
+/// the process very much alive - so the process table answers that one, and the
+/// watcher reports it as [`SessionEvent::GameRunning`].
 ///
-/// Polling slows from 2 s to 5 s once the session reports `Gameplay` - a
-/// session runs for hours, and nothing is waiting on the answer.
+/// The process table has a second job here. The client can exit while the game
+/// keeps running, and the session record goes with the client, so a lookup that
+/// answers nothing is not an ending on its own: the watcher keeps watching while
+/// `game_process` is alive and reports [`SessionEvent::Lost`] only when both are
+/// gone.
+///
+/// Polling slows from 2 s to 5 s once the game process is up - the impatient
+/// part is the wait for it to appear, and after that a session runs for hours
+/// with nothing waiting on the answer.
 ///
 /// The returned [`SessionWatch`] calls the whole thing off. Ignoring it leaves
 /// the watcher running for the length of the session, which is the
@@ -211,17 +237,25 @@ pub fn watch_session(
 struct SessionTracker {
     /// The phase last seen. `None` until the first successful lookup.
     phase: Option<SessionPhase>,
+    /// Whether the game process was up at the last poll. `None` until the
+    /// session opens, so the first reading rides on `Opened` rather than
+    /// arriving as a change from nothing.
+    game_running: Option<bool>,
 }
 
 impl SessionTracker {
     fn new() -> Self {
-        Self { phase: None }
+        Self {
+            phase: None,
+            game_running: None,
+        }
     }
 
     /// Digest one poll into events, reporting whether the watch is over.
     ///
-    /// `game_alive` is the process table's word, and it only matters when
-    /// `session` is `None`.
+    /// `game_alive` is the process table's word, and it carries two different
+    /// jobs: it is what the host actually means by "the game is up", and it is
+    /// what stops an unanswered lookup from reading as an ending.
     fn step(
         &mut self,
         session: Option<&Session>,
@@ -240,10 +274,12 @@ impl SessionTracker {
         };
 
         let phase = session.phase();
+        let opening = self.phase.is_none();
         match self.phase.replace(phase.clone()) {
             None => observer.on_event(SessionEvent::Opened {
                 phase,
                 version: session.version.clone(),
+                game_running: game_alive,
             }),
             Some(previous) if previous != phase => {
                 observer.on_event(SessionEvent::PhaseChanged {
@@ -252,6 +288,15 @@ impl SessionTracker {
                 });
             }
             Some(_) => {}
+        }
+
+        // Suppressed on the poll that opened the session, because `Opened`
+        // carried this same reading - a host must not be told twice.
+        let previously = self.game_running.replace(game_alive);
+        if !opening && previously != Some(game_alive) {
+            observer.on_event(SessionEvent::GameRunning {
+                running: game_alive,
+            });
         }
 
         if session.has_ended() {
@@ -264,9 +309,16 @@ impl SessionTracker {
         false
     }
 
+    /// Slows once the game is up.
+    ///
+    /// The impatient part of a watch is the wait for the process to appear,
+    /// because a host is holding a progress bar on it. Once it is there the
+    /// session runs for hours and nothing is waiting on the answer, so the
+    /// polling backs off - keyed on the process rather than on the phase, which
+    /// can sit at `None` for an entire session.
     fn poll_interval(&self) -> Duration {
-        match self.phase {
-            Some(SessionPhase::Gameplay) => SESSION_POLL_INTERVAL,
+        match self.game_running {
+            Some(true) => SESSION_POLL_INTERVAL,
             _ => POLL_INTERVAL,
         }
     }
@@ -455,8 +507,10 @@ mod tests {
             }
         }
 
-        /// The common life of a launch: opened at `Pending`, one move to
-        /// `Gameplay`, then hours of nothing - and the polling slows for them.
+        /// The common life of a launch: the client mints a session, the process
+        /// turns up a few seconds later, the phase moves once a match starts,
+        /// then hours of nothing - and the polling slows as soon as the game is
+        /// there, not when a match is.
         #[test]
         fn a_session_is_opened_then_followed_into_gameplay() {
             let mut tracker = SessionTracker::new();
@@ -466,9 +520,12 @@ mod tests {
             assert!(!tracker.step(Some(&pending), false, &recorder));
             assert_eq!(tracker.poll_interval(), POLL_INTERVAL);
 
+            // The process appears while the phase has not moved at all.
+            assert!(!tracker.step(Some(&pending), true, &recorder));
+            assert_eq!(tracker.poll_interval(), SESSION_POLL_INTERVAL);
+
             let playing = session("Gameplay", "StillRunning");
             assert!(!tracker.step(Some(&playing), true, &recorder));
-            assert_eq!(tracker.poll_interval(), SESSION_POLL_INTERVAL);
 
             // Steady state is silent - a host must not get an event per poll.
             assert!(!tracker.step(Some(&playing), true, &recorder));
@@ -479,13 +536,73 @@ mod tests {
                     SessionEvent::Opened {
                         phase: SessionPhase::Pending,
                         version: "1.0.0".to_string(),
+                        game_running: false,
                     },
+                    SessionEvent::GameRunning { running: true },
                     SessionEvent::PhaseChanged {
                         from: SessionPhase::Pending,
                         to: SessionPhase::Gameplay,
                     },
                 ]
             );
+        }
+
+        /// The reading `Opened` already carried must not arrive twice. A host
+        /// that acts on `GameRunning` would otherwise announce the game twice
+        /// for every session it recovers.
+        #[test]
+        fn a_session_open_under_a_live_game_reports_it_once() {
+            let mut tracker = SessionTracker::new();
+            let recorder = Recorder::default();
+
+            let live = session("None", "StillRunning");
+            assert!(!tracker.step(Some(&live), true, &recorder));
+            assert!(!tracker.step(Some(&live), true, &recorder));
+
+            assert_eq!(
+                recorder.events(),
+                vec![SessionEvent::Opened {
+                    phase: SessionPhase::Nothing,
+                    version: "1.0.0".to_string(),
+                    game_running: true,
+                }]
+            );
+        }
+
+        /// The phase is not the game. Recorded from client 137: a player sitting
+        /// in the client reports `None` with the process very much alive, so a
+        /// host keying "is it up" off the phase waits forever.
+        #[test]
+        fn the_game_is_reported_running_while_the_phase_says_nothing() {
+            let mut tracker = SessionTracker::new();
+            let recorder = Recorder::default();
+
+            let idle = session("None", "StillRunning");
+            tracker.step(Some(&idle), false, &recorder);
+            tracker.step(Some(&idle), true, &recorder);
+
+            assert_eq!(
+                recorder.events().last(),
+                Some(&SessionEvent::GameRunning { running: true })
+            );
+        }
+
+        /// A game closed between matches, with the session still open. The host
+        /// hears the process go before it hears the session end, and both.
+        #[test]
+        fn the_game_going_away_is_reported_on_its_own() {
+            let mut tracker = SessionTracker::new();
+            let recorder = Recorder::default();
+
+            let live = session("None", "StillRunning");
+            tracker.step(Some(&live), true, &recorder);
+            assert!(!tracker.step(Some(&live), false, &recorder));
+
+            assert_eq!(
+                recorder.events().last(),
+                Some(&SessionEvent::GameRunning { running: false })
+            );
+            assert_eq!(tracker.poll_interval(), POLL_INTERVAL);
         }
 
         /// `Ended` reports the client's own numbers, not a reading of ours.
@@ -542,6 +659,7 @@ mod tests {
                     SessionEvent::Opened {
                         phase: SessionPhase::Nothing,
                         version: "1.0.0".to_string(),
+                        game_running: false,
                     },
                     SessionEvent::Ended {
                         exit_code: 0,
